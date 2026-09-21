@@ -6,7 +6,7 @@ import "./styles.css";
 const root = document.getElementById("root");
 
 if (!root) {
-  throw new Error("FENIX CITY: элемент #root не найден");
+  throw new Error("FENIX CITY: #root not found");
 }
 
 createRoot(root).render(
