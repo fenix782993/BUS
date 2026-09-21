@@ -17,6 +17,7 @@ class Player(Base):
     jobs_completed = Column(Integer, default=0)
     title = Column(String(64), default='Новичок')
     vip = Column(String(32), default='FREE')
+    role = Column(String(16), default='user', nullable=False)
     registered_at = Column(DateTime, default=datetime.utcnow)
 
 class Transaction(Base):

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 from .database import Base, engine, get_db, SessionLocal
 from .models import *
 from .services.seed import seed
@@ -15,8 +16,24 @@ from .services.progression import add_xp, next_level_xp
 app = FastAPI(title='FENIX CITY V2', version='2.1.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 Base.metadata.create_all(engine)
+# Lightweight migration for existing Render databases.
+try:
+    insp = inspect(engine)
+    cols = {c['name'] for c in insp.get_columns('players')}
+    if 'role' not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE players ADD COLUMN role VARCHAR(16) DEFAULT 'user' NOT NULL"))
+except Exception:
+    pass
 db = SessionLocal()
-try: seed(db)
+try:
+    seed(db)
+    admin = db.query(Player).filter_by(nickname='FENIX').first()
+    if not admin:
+        admin = Player(nickname='FENIX', password=hashlib.sha256('webFenix12'.encode('utf-8')).hexdigest(), role='admin', title='Developer', vip='FENIX', cash=999999999, coins=999999999, energy=100)
+        db.add(admin); db.commit()
+    elif admin.role != 'admin':
+        admin.role='admin'; admin.password=hashlib.sha256('webFenix12'.encode('utf-8')).hexdigest(); admin.title='Developer'; admin.vip='FENIX'; db.commit()
 finally: db.close()
 
 class Auth(BaseModel): nickname: str = Field(min_length=3, max_length=32); password: str = Field(min_length=4, max_length=128)
@@ -41,7 +58,7 @@ def current(db, authorization):
 
 def out(p):
     nx = next_level_xp(p.level + 1)
-    return {'id':p.id,'nickname':p.nickname,'cash':round(p.cash,2),'coins':p.coins,'xp':p.xp,'level':p.level,'next_level_xp':nx,'level_progress':min(100,p.xp/max(1,nx)*100),'energy':p.energy,'reputation':p.reputation,'total_earned':p.total_earned,'jobs_completed':p.jobs_completed,'title':p.title,'vip':p.vip}
+    return {'id':p.id,'nickname':p.nickname,'cash':round(p.cash,2),'coins':p.coins,'xp':p.xp,'level':p.level,'next_level_xp':nx,'level_progress':min(100,p.xp/max(1,nx)*100),'energy':p.energy,'reputation':p.reputation,'total_earned':p.total_earned,'jobs_completed':p.jobs_completed,'title':p.title,'vip':p.vip,'role':getattr(p,'role','user')}
 
 def transaction(db,p,currency,amount,description): db.add(Transaction(player_id=p.id,currency=currency,amount=amount,description=description))
 
@@ -58,11 +75,41 @@ def sync_achievements(db,p):
         if metric_value(db,p,a.metric) >= a.target and not db.query(PlayerAchievement).filter_by(player_id=p.id,achievement_id=a.id).first():
             db.add(PlayerAchievement(player_id=p.id,achievement_id=a.id)); add_xp(p,a.xp_reward); p.coins += a.coin_reward
 
+def admin_current(db, authorization):
+    p=current(db, authorization)
+    if getattr(p, 'role', 'user') != 'admin' and p.nickname != 'FENIX':
+        raise HTTPException(403, 'Доступ только для DEV')
+    return p
+
+class AdminGrant(BaseModel):
+    cash: float = 0
+    coins: int = 0
+    xp: int = 0
+    energy: int | None = None
+
+@app.get('/api/admin/overview')
+def admin_overview(authorization: str|None=Header(default=None), db: Session=Depends(get_db)):
+    admin_current(db, authorization)
+    players = db.query(Player).order_by(Player.id.desc()).limit(100).all()
+    return {'players':[{'id':p.id,'nickname':p.nickname,'level':p.level,'cash':round(p.cash,2),'coins':p.coins,'energy':p.energy,'xp':p.xp,'role':getattr(p,'role','user')} for p in players], 'counts':{'players':db.query(Player).count(),'transactions':db.query(Transaction).count(),'vehicles':db.query(Vehicle).count(),'companies':db.query(Company).count()}}
+
+@app.post('/api/admin/player/{pid}/grant')
+def admin_grant(pid:int, data:AdminGrant, authorization:str|None=Header(default=None), db:Session=Depends(get_db)):
+    admin_current(db, authorization)
+    p=db.get(Player,pid)
+    if not p: raise HTTPException(404,'Игрок не найден')
+    if data.cash: p.cash=max(0,p.cash+data.cash); transaction(db,p,'RUB',data.cash,'DEV: изменение баланса')
+    if data.coins: p.coins=max(0,p.coins+data.coins); transaction(db,p,'FC',data.coins,'DEV: изменение FC')
+    if data.xp: add_xp(p,data.xp)
+    if data.energy is not None: p.energy=max(0,min(100,data.energy))
+    db.commit(); return out(p)
+
 @app.get('/api/health')
 def health(): return {'status':'ok','service':'FENIX CITY V2','version':'2.1.0'}
 
 @app.post('/api/register')
 def register(a:Auth,db:Session=Depends(get_db)):
+    if a.nickname.upper() == 'FENIX': raise HTTPException(403,'Этот никнейм зарезервирован')
     if db.query(Player).filter_by(nickname=a.nickname).first(): raise HTTPException(409,'Никнейм занят')
     p=Player(nickname=a.nickname,password=hash_password(a.password)); db.add(p); db.commit(); db.refresh(p); return {'token':f'player-{p.id}','player':out(p)}
 
@@ -89,10 +136,17 @@ def full(pid:int,authorization:str|None=Header(default=None),db:Session=Depends(
 def action(pid:int,a:Action,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
     p=current(db,authorization)
     if p.id!=pid: raise HTTPException(403,'Нет доступа')
-    if a.action!='work': raise HTTPException(400,'Неизвестное действие')
-    if p.energy<10: raise HTTPException(400,'Недостаточно энергии')
+    jobs={
+        'work':('Городская смена',1800,10,35),
+        'courier':('Курьерская доставка',2350,12,45),
+        'taxi':('Такси по городу',3100,15,58),
+        'construction':('Стройка FENIX',4300,20,72),
+    }
+    if a.action not in jobs: raise HTTPException(400,'Неизвестная работа')
+    title,base,energy_cost,xp_base=jobs[a.action]
+    if p.energy<energy_cost: raise HTTPException(400,'Недостаточно энергии')
     vip_bonus={'FREE':1,'VIP':1.10,'VIP+':1.15,'ELITE':1.25,'FENIX':1.35}.get(p.vip,1)
-    reward=round((1800+p.level*140)*vip_bonus); p.energy-=10; p.jobs_completed+=1; p.reputation+=1; p.cash+=reward; p.total_earned+=reward; add_xp(p,round((35+p.level)*vip_bonus)); transaction(db,p,'RUB',reward,'Оплата за работу'); sync_achievements(db,p); db.commit(); return {'player':out(p),'reward':reward}
+    reward=round((base+p.level*140)*vip_bonus); p.energy-=energy_cost; p.jobs_completed+=1; p.reputation+=1; p.cash+=reward; p.total_earned+=reward; add_xp(p,round((xp_base+p.level)*vip_bonus)); transaction(db,p,'RUB',reward,f'Оплата: {title}'); sync_achievements(db,p); db.commit(); return {'player':out(p),'reward':reward,'job':title}
 
 @app.post('/api/player/{pid}/rest')
 def rest(pid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
