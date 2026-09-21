@@ -259,25 +259,59 @@ def collect_company_income(pid:int,authorization:str|None=Header(default=None),d
     db.commit(); return {'player':out(p),'collected':round(total,2)}
 
 @app.get('/api/districts')
-def districts(): return [{'id':1,'name':'Центр','description':'Деловой район города','activity':94},{'id':2,'name':'Промзона','description':'Автомобили и логистика','activity':82},{'id':3,'name':'Премиум','description':'Элитная недвижимость','activity':76}]
+def districts():
+    return [
+        {'id':1,'name':'Центр','description':'Небоскрёбы, банки, офисы и главная площадь.','activity':94,'type':'business','color':'orange'},
+        {'id':2,'name':'Промзона','description':'Автосервисы, склады, заводы и логистика.','activity':82,'type':'industrial','color':'steel'},
+        {'id':3,'name':'Премиум','description':'Пентхаусы, элитные клубы и дорогие дома.','activity':76,'type':'premium','color':'gold'},
+        {'id':4,'name':'Набережная','description':'Порт, рестораны, отели и прогулочная зона.','activity':71,'type':'waterfront','color':'blue'},
+        {'id':5,'name':'Старый город','description':'Рынок, мастерские и жилые кварталы.','activity':64,'type':'oldtown','color':'violet'},
+        {'id':6,'name':'Аэропорт','description':'Терминалы, каршеринг и международные перевозки.','activity':58,'type':'airport','color':'cyan'}
+    ]
 @app.get('/api/events')
-def events(): return [{'id':1,'title':'Рабочий день','description':'Доход от работы увеличен за счёт активности города.','reward':'XP +10%'},{'id':2,'title':'Рынок открыт','description':'Следи за изменениями индексов и торгуй активами.','reward':'LIVE'}]
+def events(): return [{'id':1,'title':'Рабочий день','description':'Городская активность повышает доход рабочих смен.','reward':'XP +10%'},{'id':2,'title':'Рынок LIVE','description':'Котировки обновляются сервером — можно покупать и продавать активы.','reward':'LIVE'},{'id':3,'title':'Ночная жизнь','description':'Набережная и Премиум активнее вечером.','reward':'Активность +12%'}]
 
 @app.get('/api/market')
-def market(db:Session=Depends(get_db)):
-    return [{'id':x.id,'symbol':x.symbol,'name':x.name,'price':round(x.price,2),'change':round(x.change,2),'volume':x.volume} for x in db.query(MarketAsset).all()]
+def market(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    holdings={h.asset_id:h for h in db.query(MarketHolding).filter_by(player_id=p.id)}
+    result=[]
+    for x in db.query(MarketAsset).all():
+        h=holdings.get(x.id)
+        qty=h.quantity if h else 0
+        avg=h.average_price if h else 0
+        result.append({'id':x.id,'symbol':x.symbol,'name':x.name,'price':round(x.price,2),'change':round(x.change,2),'volume':x.volume,'owned':qty,'average_price':round(avg,2),'position_value':round(qty*x.price,2)})
+    return result
 @app.post('/api/market/tick')
-def market_tick(db:Session=Depends(get_db)):
+def market_tick(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    current(db,authorization)
     for x in db.query(MarketAsset).all():
         x.change=round(random.uniform(-4.5,4.5),2); x.price=max(10,round(x.price*(1+x.change/100),2)); x.volume=random.randint(2500,18000)
-    db.commit(); return market(db)
+    db.commit(); return market(authorization,db)
 @app.post('/api/market/buy')
 def market_buy(t:MarketTrade,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
     p=current(db,authorization); a=db.query(MarketAsset).filter_by(symbol=t.symbol.upper()).first()
     if not a: raise HTTPException(404,'Актив не найден')
     cost=a.price*t.quantity
     if p.cash<cost: raise HTTPException(400,'Недостаточно средств')
-    p.cash-=cost; transaction(db,p,'RUB',-cost,f'Покупка {t.quantity} {a.symbol}'); db.commit(); return out(p)
+    h=db.query(MarketHolding).filter_by(player_id=p.id,asset_id=a.id).first()
+    if not h:
+        h=MarketHolding(player_id=p.id,asset_id=a.id,quantity=0,average_price=0); db.add(h)
+    new_qty=h.quantity+t.quantity
+    h.average_price=((h.average_price*h.quantity)+(a.price*t.quantity))/new_qty
+    h.quantity=new_qty
+    p.cash-=cost; transaction(db,p,'RUB',-cost,f'Покупка {t.quantity} {a.symbol}'); db.commit(); return {'player':out(p),'holding':{'symbol':a.symbol,'quantity':h.quantity,'average_price':round(h.average_price,2)}}
+@app.post('/api/market/sell')
+def market_sell(t:MarketTrade,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); a=db.query(MarketAsset).filter_by(symbol=t.symbol.upper()).first()
+    if not a: raise HTTPException(404,'Актив не найден')
+    h=db.query(MarketHolding).filter_by(player_id=p.id,asset_id=a.id).first()
+    if not h or h.quantity<t.quantity: raise HTTPException(400,'Недостаточно актива для продажи')
+    revenue=a.price*t.quantity
+    h.quantity-=t.quantity
+    if h.quantity==0: db.delete(h)
+    p.cash+=revenue; p.total_earned+=max(0,revenue-(h.average_price*t.quantity if h else 0))
+    transaction(db,p,'RUB',revenue,f'Продажа {t.quantity} {a.symbol}'); db.commit(); return {'player':out(p),'sold':t.quantity,'revenue':round(revenue,2)}
 
 @app.get('/api/leaderboard')
 def leaderboard(db:Session=Depends(get_db)):

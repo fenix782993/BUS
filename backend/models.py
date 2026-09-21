@@ -147,6 +147,14 @@ class MarketAsset(Base):
     change = Column(Float, default=0)
     volume = Column(Integer, default=0)
 
+class MarketHolding(Base):
+    __tablename__ = 'market_holdings'
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'))
+    asset_id = Column(Integer, ForeignKey('market_assets.id'))
+    quantity = Column(Integer, default=0)
+    average_price = Column(Float, default=0)
+
 class DonationOrder(Base):
     __tablename__ = 'donation_orders'
     id = Column(Integer, primary_key=True)
