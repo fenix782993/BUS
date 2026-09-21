@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+
+    <meta name="theme-color" content="#09090b" />
+    <meta name="background-color" content="#09090b" />
+
+    <meta
+      name="description"
+      content="FENIX CITY — виртуальный город, экономика, бизнес, транспорт и рейтинг жителей."
+    />
+
+    <meta
+      name="keywords"
+      content="FENIX CITY, FENIX, город, игра, экономика, бизнес, автомобили"
+    />
+
+    <meta name="author" content="FENIX" />
+
+    <meta name="application-name" content="FENIX CITY" />
+
+    <meta
+      name="mobile-web-app-capable"
+      content="yes"
+    />
+
+    <meta
+      name="apple-mobile-web-app-capable"
+      content="yes"
+    />
+
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+
+    <meta
+      name="apple-mobile-web-app-title"
+      content="FENIX CITY"
+    />
+
+    <meta
+      name="format-detection"
+      content="telephone=no"
+    />
+
+    <title>FENIX CITY</title>
+
+    <style>
+      html {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #09090b;
+      }
+
+      body {
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        background: #09090b;
+        color: #ffffff;
+        overflow-x: hidden;
+      }
+
+      #root {
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body,
+      #root {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      input,
+      textarea,
+      select {
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      img,
+      svg {
+        max-width: 100%;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      ::selection {
+        background: rgba(255, 106, 0, 0.35);
+        color: #ffffff;
+      }
+
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: #09090b;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #27272a;
+        border-radius: 999px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #3f3f46;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!--
+      ВАЖНО:
+      Это исходная точка Vite/React.
+      При npm run build Vite автоматически заменит её
+      в frontend/dist/index.html на /assets/index-....js
+    -->
+    <script
+      type="module"
+      src="/src/main.jsx"
+    ></script>
+  </body>
+</html>
