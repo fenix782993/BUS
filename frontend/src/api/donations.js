@@ -1,0 +1,1 @@
+import {get,post} from './client';export const getPackages=()=>get('/api/donations/packages');export const getOrders=()=>get('/api/donations/orders');export const createOrder=packageCode=>post('/api/donations/order',{package:packageCode});

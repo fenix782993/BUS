@@ -1,14 +1,2 @@
-export default function TopBar({ player }) {
-  return (
-    <header className="top">
-      <div className="top-brand">
-        <strong>FENIX CITY</strong>
-      </div>
-
-      <div className="top-balance">
-        <span>{Math.round(player?.cash || 0).toLocaleString("ru-RU")} ₽</span>
-        <span>{player?.coins || 0} FC</span>
-      </div>
-    </header>
-  );
-}
+import {Coins,LogOut} from 'lucide-react';
+export default function TopBar({player}){function logout(){localStorage.removeItem('fenix_token');location.reload()}return <header className="top"><div><strong>FENIX CITY</strong><span className="top-id">#{player?.id}</span></div><div className="top-actions"><b>{Math.round(player?.cash||0).toLocaleString('ru-RU')} ₽</b><b><Coins size={15}/>{player?.coins||0} FC</b><button className="logout" onClick={logout}><LogOut size={16}/></button></div></header>}
