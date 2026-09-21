@@ -1,799 +1,135 @@
-from __future__ import annotations
-
-import os
 from pathlib import Path
-from typing import Any
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI,Depends,HTTPException,Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-
-
-# ============================================================
-# FENIX CITY
-# Backend + React static server
-# ============================================================
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = BASE_DIR / "frontend"
-DIST_DIR = FRONTEND_DIR / "dist"
-ASSETS_DIR = DIST_DIR / "assets"
-
-app = FastAPI(
-    title="FENIX CITY API",
-    description="Backend API for FENIX CITY",
-    version="1.0.0",
-)
-
-# ============================================================
-# CORS
-# ============================================================
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-def frontend_ready() -> bool:
-    return (DIST_DIR / "index.html").is_file()
-
-
-def json_error(message: str, status_code: int = 404) -> JSONResponse:
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "detail": message,
-        },
-    )
-
-
-# ============================================================
-# STATIC FRONTEND
-# ============================================================
-
-if ASSETS_DIR.is_dir():
-    app.mount(
-        "/assets",
-        StaticFiles(directory=str(ASSETS_DIR)),
-        name="assets",
-    )
-
-
-# ============================================================
-# ROOT
-# ============================================================
-
-@app.get("/", include_in_schema=False)
-async def root():
-    """
-    Главная страница React-приложения.
-    """
-
-    index_file = DIST_DIR / "index.html"
-
-    if not index_file.is_file():
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "frontend_not_built",
-                "message": "FENIX CITY frontend/dist/index.html not found",
-                "frontend_dir": str(FRONTEND_DIR),
-                "dist_dir": str(DIST_DIR),
-                "hint": "Run: cd frontend && npm install && npm run build",
-            },
-        )
-
-    return FileResponse(
-        path=str(index_file),
-        media_type="text/html",
-    )
-
-
-# ============================================================
-# HEALTH
-# ============================================================
-
-@app.get("/api/health")
-async def health():
-    return {
-        "status": "ok",
-        "service": "FENIX CITY",
-        "version": "1.0.0",
-        "frontend_built": frontend_ready(),
-    }
-
-
-# ============================================================
-# BASIC API
-# ============================================================
-
-@app.get("/api")
-async def api_root():
-    return {
-        "service": "FENIX CITY API",
-        "version": "1.0.0",
-        "status": "online",
-        "frontend_built": frontend_ready(),
-    }
-
-
-# ============================================================
-# MODELS
-# ============================================================
-
-class RegisterRequest(BaseModel):
-    nickname: str
-
-
-class ActionRequest(BaseModel):
-    action: str
-
-
-# ============================================================
-# DEMO DATA
-# ============================================================
-
-PLAYERS: dict[str, dict[str, Any]] = {}
-
-COMPANIES = [
-    {
-        "id": 1,
-        "name": "FENIX MOTORS",
-        "type": "Автосалон",
-        "district": "Центр",
-        "income": 12500,
-        "employees": 24,
-        "icon": "car",
-    },
-    {
-        "id": 2,
-        "name": "FENIX BANK",
-        "type": "Банк",
-        "district": "Деловой центр",
-        "income": 28700,
-        "employees": 61,
-        "icon": "bank",
-    },
-    {
-        "id": 3,
-        "name": "FENIX LOGISTICS",
-        "type": "Логистика",
-        "district": "Промзона",
-        "income": 18300,
-        "employees": 42,
-        "icon": "factory",
-    },
-    {
-        "id": 4,
-        "name": "FENIX MARKET",
-        "type": "Торговый центр",
-        "district": "Центр",
-        "income": 9600,
-        "employees": 37,
-        "icon": "shopping",
-    },
-]
-
-DISTRICTS = [
-    {
-        "id": 1,
-        "name": "Центр",
-        "description": "Главный район города",
-        "population": 124000,
-        "level": 5,
-    },
-    {
-        "id": 2,
-        "name": "Деловой центр",
-        "description": "Финансовое сердце FENIX CITY",
-        "population": 87000,
-        "level": 5,
-    },
-    {
-        "id": 3,
-        "name": "Промзона",
-        "description": "Производство и логистика",
-        "population": 54000,
-        "level": 3,
-    },
-    {
-        "id": 4,
-        "name": "Пригород",
-        "description": "Жилой район города",
-        "population": 73000,
-        "level": 2,
-    },
-]
-
-EVENTS = [
-    {
-        "id": 1,
-        "title": "Городской фестиваль",
-        "description": "Активность жителей повышена",
-        "type": "city",
-        "active": True,
-    },
-    {
-        "id": 2,
-        "title": "Рост рынка",
-        "description": "Доходность бизнеса временно увеличена",
-        "type": "market",
-        "active": True,
-    },
-]
-
-PROPERTIES = [
-    {
-        "id": 1,
-        "name": "Стартовая квартира",
-        "type": "Квартира",
-        "district": "Пригород",
-        "price": 25000,
-        "income": 300,
-        "level": 1,
-    },
-    {
-        "id": 2,
-        "name": "Апартаменты FENIX",
-        "type": "Апартаменты",
-        "district": "Центр",
-        "price": 95000,
-        "income": 1100,
-        "level": 3,
-    },
-    {
-        "id": 3,
-        "name": "Пентхаус",
-        "type": "Премиум",
-        "district": "Деловой центр",
-        "price": 350000,
-        "income": 4200,
-        "level": 5,
-    },
-]
-
-VEHICLES = [
-    {
-        "id": 1,
-        "name": "Fenix Compact",
-        "type": "Автомобиль",
-        "price": 18000,
-        "speed": 55,
-        "class": "C",
-    },
-    {
-        "id": 2,
-        "name": "Fenix Sport",
-        "type": "Спорткар",
-        "price": 85000,
-        "speed": 92,
-        "class": "A",
-    },
-    {
-        "id": 3,
-        "name": "Fenix Executive",
-        "type": "Премиум",
-        "price": 180000,
-        "speed": 88,
-        "class": "S",
-    },
-]
-
-TASKS = [
-    {
-        "id": 1,
-        "title": "Начало пути",
-        "description": "Зарегистрируйся в FENIX CITY",
-        "reward": 500,
-        "type": "register",
-    },
-    {
-        "id": 2,
-        "title": "Первый заработок",
-        "description": "Выполни рабочее действие",
-        "reward": 1000,
-        "type": "work",
-    },
-    {
-        "id": 3,
-        "title": "Городской житель",
-        "description": "Посети город",
-        "reward": 250,
-        "type": "city",
-    },
-]
-
-
-# ============================================================
-# PLAYER HELPERS
-# ============================================================
-
-def create_player(player_id: str, nickname: str) -> dict[str, Any]:
-    return {
-        "id": player_id,
-        "nickname": nickname,
-        "level": 1,
-        "xp": 0,
-        "money": 10000,
-        "bank": 0,
-        "energy": 100,
-        "health": 100,
-        "rating": 0,
-        "job": "Безработный",
-        "company": None,
-        "district": "Пригород",
-        "status": "Гражданин",
-        "properties": [],
-        "vehicles": [],
-        "businesses": [],
-        "completed_tasks": [],
-        "created_at": None,
-    }
-
-
-# ============================================================
-# REGISTER
-# ============================================================
-
-@app.post("/api/register")
-async def register(data: RegisterRequest):
-    nickname = data.nickname.strip()
-
-    if len(nickname) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Никнейм должен содержать минимум 2 символа",
-        )
-
-    player_id = str(abs(hash(nickname.lower())))
-
-    if player_id not in PLAYERS:
-        PLAYERS[player_id] = create_player(
-            player_id=player_id,
-            nickname=nickname,
-        )
-
-    return {
-        "success": True,
-        "player": PLAYERS[player_id],
-    }
-
-
-# ============================================================
-# GET PLAYER
-# ============================================================
-
-@app.get("/api/player/{player_id}/full")
-async def get_player(player_id: str):
-    player = PLAYERS.get(str(player_id))
-
-    if not player:
-        raise HTTPException(
-            status_code=404,
-            detail="Игрок не найден",
-        )
-
-    return {
-        "player": player,
-    }
-
-
-# ============================================================
-# PLAYER ACTION
-# ============================================================
-
-@app.post("/api/player/{player_id}/action")
-async def player_action(
-    player_id: str,
-    data: ActionRequest,
-):
-    player = PLAYERS.get(str(player_id))
-
-    if not player:
-        raise HTTPException(
-            status_code=404,
-            detail="Игрок не найден",
-        )
-
-    action = data.action.lower().strip()
-
-    rewards = {
-        "work": 1000,
-        "job": 1000,
-        "city": 250,
-        "business": 500,
-        "market": 100,
-        "drive": 150,
-    }
-
-    reward = rewards.get(action, 100)
-
-    if player["energy"] <= 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Недостаточно энергии",
-        )
-
-    player["money"] += reward
-    player["rating"] += reward // 10
-    player["xp"] += reward // 5
-    player["energy"] = max(
-        0,
-        player["energy"] - 10,
-    )
-
-    return {
-        "success": True,
-        "action": action,
-        "reward": reward,
-        "player": player,
-    }
-
-
-# ============================================================
-# REST
-# ============================================================
-
-@app.post("/api/player/{player_id}/rest")
-async def rest_player(player_id: str):
-    player = PLAYERS.get(str(player_id))
-
-    if not player:
-        raise HTTPException(
-            status_code=404,
-            detail="Игрок не найден",
-        )
-
-    player["energy"] = 100
-    player["health"] = 100
-
-    return {
-        "success": True,
-        "player": player,
-    }
-
-
-# ============================================================
-# COMPANIES
-# ============================================================
-
-@app.get("/api/companies")
-async def get_companies():
-    return {
-        "companies": COMPANIES,
-    }
-
-
-# ============================================================
-# DISTRICTS
-# ============================================================
-
-@app.get("/api/districts")
-async def get_districts():
-    return {
-        "districts": DISTRICTS,
-    }
-
-
-# ============================================================
-# EVENTS
-# ============================================================
-
-@app.get("/api/events")
-async def get_events():
-    return {
-        "events": EVENTS,
-    }
-
-
-# ============================================================
-# LEADERBOARD
-# ============================================================
-
-@app.get("/api/leaderboard")
-async def get_leaderboard():
-    players = list(PLAYERS.values())
-
-    players.sort(
-        key=lambda player: (
-            player.get("rating", 0),
-            player.get("money", 0),
-        ),
-        reverse=True,
-    )
-
-    result = []
-
-    for index, player in enumerate(players[:50], start=1):
-        result.append(
-            {
-                "rank": index,
-                "id": player["id"],
-                "nickname": player["nickname"],
-                "level": player["level"],
-                "rating": player["rating"],
-                "money": player["money"],
-            }
-        )
-
-    return {
-        "leaderboard": result,
-    }
-
-
-# ============================================================
-# PROPERTIES
-# ============================================================
-
-@app.get("/api/properties")
-async def get_properties():
-    return {
-        "properties": PROPERTIES,
-    }
-
-
-# ============================================================
-# BUY PROPERTY
-# ============================================================
-
-@app.post("/api/player/{player_id}/property/{property_id}/buy")
-async def buy_property(
-    player_id: str,
-    property_id: int,
-):
-    player = PLAYERS.get(str(player_id))
-
-    if not player:
-        raise HTTPException(
-            status_code=404,
-            detail="Игрок не найден",
-        )
-
-    property_data = next(
-        (
-            item
-            for item in PROPERTIES
-            if item["id"] == property_id
-        ),
-        None,
-    )
-
-    if not property_data:
-        raise HTTPException(
-            status_code=404,
-            detail="Недвижимость не найдена",
-        )
-
-    if property_id in player["properties"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Эта недвижимость уже куплена",
-        )
-
-    if player["money"] < property_data["price"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Недостаточно денег",
-        )
-
-    player["money"] -= property_data["price"]
-    player["properties"].append(property_id)
-
-    return {
-        "success": True,
-        "property": property_data,
-        "player": player,
-    }
-
-
-# ============================================================
-# VEHICLES
-# ============================================================
-
-@app.get("/api/vehicles")
-async def get_vehicles():
-    return {
-        "vehicles": VEHICLES,
-    }
-
-
-# ============================================================
-# BUY VEHICLE
-# ============================================================
-
-@app.post("/api/player/{player_id}/vehicle/{vehicle_id}/buy")
-async def buy_vehicle(
-    player_id: str,
-    vehicle_id: int,
-):
-    player = PLAYERS.get(str(player_id))
-
-    if not player:
-        raise HTTPException(
-            status_code=404,
-            detail="Игрок не найден",
-        )
-
-    vehicle = next(
-        (
-            item
-            for item in VEHICLES
-            if item["id"] == vehicle_id
-        ),
-        None,
-    )
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Автомобиль не найден",
-        )
-
-    if vehicle_id in player["vehicles"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Этот автомобиль уже куплен",
-        )
-
-    if player["money"] < vehicle["price"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Недостаточно денег",
-        )
-
-    player["money"] -= vehicle["price"]
-    player["vehicles"].append(vehicle_id)
-
-    return {
-        "success": True,
-        "vehicle": vehicle,
-        "player": player,
-    }
-
-
-# ============================================================
-# TASKS
-# ============================================================
-
-@app.get("/api/tasks")
-async def get_tasks():
-    return {
-        "tasks": TASKS,
-    }
-
-
-# ============================================================
-# MARKET
-# ============================================================
-
-@app.post("/api/market/tick")
-async def market_tick():
-    return {
-        "success": True,
-        "message": "Рынок обновлён",
-        "market": {
-            "status": "active",
-            "trend": "up",
-        },
-    }
-
-
-# ============================================================
-# FAVICON
-# ============================================================
-
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    favicon_file = DIST_DIR / "favicon.ico"
-
-    if favicon_file.is_file():
-        return FileResponse(
-            path=str(favicon_file),
-            media_type="image/x-icon",
-        )
-
-    return JSONResponse(
-        status_code=204,
-        content=None,
-    )
-
-
-# ============================================================
-# SPA FALLBACK
-# ============================================================
-
-@app.get("/{path:path}", include_in_schema=False)
-async def spa_fallback(path: str):
-    """
-    Всё, что не является API или существующим статическим файлом,
-    отправляем в React index.html.
-
-    Это позволяет работать маршрутам:
-      /city
-      /work
-      /business
-      /garage
-      /market
-      /ranking
-      /profile
-    """
-
-    # API не должен попадать в SPA fallback
-    if path.startswith("api/"):
-        return json_error(
-            "API endpoint not found",
-            404,
-        )
-
-    # Не отдаём исходники React.
-    # Если браузер запрашивает /src/main.jsx,
-    # это означает, что используется НЕСОБРАННЫЙ index.html.
-    if path.startswith("src/"):
-        return json_error(
-            "Frontend source requested. Use frontend/dist after npm run build.",
-            404,
-        )
-
-    requested_file = DIST_DIR / path
-
-    # Защита от выхода за пределы dist
-    try:
-        requested_file.resolve().relative_to(
-            DIST_DIR.resolve()
-        )
-    except ValueError:
-        return json_error(
-            "Invalid path",
-            400,
-        )
-
-    # Если это настоящий файл из dist — отдаём его.
-    if requested_file.is_file():
-        return FileResponse(
-            path=str(requested_file)
-        )
-
-    # Иначе React SPA
-    index_file = DIST_DIR / "index.html"
-
-    if index_file.is_file():
-        return FileResponse(
-            path=str(index_file),
-            media_type="text/html",
-        )
-
-    return JSONResponse(
-        status_code=503,
-        content={
-            "status": "frontend_not_built",
-            "message": "frontend/dist/index.html not found",
-            "hint": "Run: cd frontend && npm install && npm run build",
-        },
-    )
-
-
-# ============================================================
-# STARTUP INFO
-# ============================================================
-
-@app.on_event("startup")
-async def startup_event():
-    print("=" * 60)
-    print("FENIX CITY")
-    print("=" * 60)
-    print(f"BASE_DIR:      {BASE_DIR}")
-    print(f"FRONTEND_DIR:  {FRONTEND_DIR}")
-    print(f"DIST_DIR:      {DIST_DIR}")
-    print(f"ASSETS_DIR:    {ASSETS_DIR}")
-    print(f"FRONTEND READY: {frontend_ready()}")
-    print("=" * 60)
+from fastapi.responses import FileResponse
+from pydantic import BaseModel,Field
+from sqlalchemy.orm import Session
+from .database import Base,engine,get_db,SessionLocal
+from .models import *
+from .services.seed import seed
+from .services.progression import add_xp,next_level_xp
+app=FastAPI(title='FENIX CITY V2',version='2.0.0'); app.add_middleware(CORSMiddleware,allow_origins=['*'],allow_methods=['*'],allow_headers=['*'])
+Base.metadata.create_all(engine); db=SessionLocal()
+try: seed(db)
+finally: db.close()
+class Auth(BaseModel): nickname:str=Field(min_length=3,max_length=32); password:str=Field(min_length=4,max_length=128)
+class Action(BaseModel): action:str
+class Donation(BaseModel): package:str
+PACKAGES={'starter':(100,1.99),'plus':(250,4.49),'pro':(500,8.49),'mega':(1000,15.99),'ultra':(2500,34.99),'legend':(5000,64.99),'max':(10000,119.99)}
+def current(db,authorization):
+ if not authorization: raise HTTPException(401,'Требуется авторизация')
+ try: pid=int(authorization.replace('Bearer ','').split('-')[-1])
+ except: raise HTTPException(401,'Недействительный токен')
+ p=db.get(Player,pid)
+ if not p: raise HTTPException(401,'Игрок не найден')
+ return p
+def out(p):
+ nx=next_level_xp(p.level+1); return {'id':p.id,'nickname':p.nickname,'cash':round(p.cash,2),'coins':p.coins,'xp':p.xp,'level':p.level,'next_level_xp':nx,'level_progress':min(100,p.xp/max(1,nx)*100),'energy':p.energy,'reputation':p.reputation,'total_earned':p.total_earned,'jobs_completed':p.jobs_completed,'title':p.title,'vip':p.vip}
+@app.get('/api/health')
+def health(): return {'status':'ok','service':'FENIX CITY V2'}
+@app.post('/api/register')
+def register(a:Auth,db:Session=Depends(get_db)):
+ if db.query(Player).filter_by(nickname=a.nickname).first(): raise HTTPException(409,'Никнейм занят')
+ p=Player(nickname=a.nickname,password=a.password); db.add(p); db.commit(); db.refresh(p); return {'token':f'player-{p.id}','player':out(p)}
+@app.post('/api/login')
+def login(a:Auth,db:Session=Depends(get_db)):
+ p=db.query(Player).filter_by(nickname=a.nickname,password=a.password).first()
+ if not p: raise HTTPException(401,'Неверный логин или пароль')
+ return {'token':f'player-{p.id}','player':out(p)}
+@app.post('/api/auth/register')
+def ar(a:Auth,db:Session=Depends(get_db)): return register(a,db)
+@app.post('/api/auth/login')
+def al(a:Auth,db:Session=Depends(get_db)): return login(a,db)
+@app.get('/api/me')
+def me(authorization:str|None=Header(default=None),db:Session=Depends(get_db)): return out(current(db,authorization))
+@app.get('/api/player/{pid}/full')
+def full(pid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization)
+ if p.id!=pid: raise HTTPException(403,'Нет доступа')
+ return out(p)
+@app.post('/api/player/{pid}/action')
+def action(pid:int,a:Action,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization)
+ if p.id!=pid: raise HTTPException(403,'Нет доступа')
+ if a.action!='work': raise HTTPException(400,'Неизвестное действие')
+ if p.energy<10: raise HTTPException(400,'Недостаточно энергии')
+ reward=1800+p.level*140; p.energy-=10; p.jobs_completed+=1; p.reputation+=1; p.cash+=reward; p.total_earned+=reward; add_xp(p,35+p.level); db.add(Transaction(player_id=p.id,currency='RUB',amount=reward,description='Оплата за работу')); db.commit(); return {'player':out(p),'reward':reward}
+@app.post('/api/player/{pid}/rest')
+def rest(pid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization)
+ if p.id!=pid: raise HTTPException(403,'Нет доступа')
+ p.energy=min(100,p.energy+35); add_xp(p,5); db.commit(); return out(p)
+@app.get('/api/tasks')
+def tasks(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization); result=[]
+ for m in db.query(Mission).all():
+  mp=db.query(MissionProgress).filter_by(player_id=p.id,mission_id=m.id).first()
+  if not mp: mp=MissionProgress(player_id=p.id,mission_id=m.id); db.add(mp)
+  val={'jobs':p.jobs_completed,'earned':int(p.total_earned),'level':p.level}.get(m.metric,0); mp.progress=min(m.target,val)
+  result.append({'id':m.id,'title':m.title,'description':m.description,'period':m.period,'progress':mp.progress,'target':m.target,'xp_reward':m.xp_reward,'cash_reward':m.cash_reward,'coin_reward':m.coin_reward,'completed':mp.progress>=m.target,'claimed':mp.claimed})
+ db.commit(); return result
+@app.post('/api/tasks/{mid}/claim')
+def claim(mid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization); m=db.get(Mission,mid); mp=db.query(MissionProgress).filter_by(player_id=p.id,mission_id=mid).first()
+ if not m or not mp or mp.progress<m.target or mp.claimed: raise HTTPException(400,'Награда недоступна')
+ mp.claimed=True; p.cash+=m.cash_reward; p.coins+=m.coin_reward; add_xp(p,m.xp_reward); db.commit(); return out(p)
+@app.get('/api/achievements')
+def achievements(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization); done={x.achievement_id for x in db.query(PlayerAchievement).filter_by(player_id=p.id)}
+ return [{'id':a.id,'title':a.title,'description':a.description,'unlocked':a.id in done,'xp_reward':a.xp_reward,'coin_reward':a.coin_reward} for a in db.query(Achievement).all()]
+@app.get('/api/shop')
+def shop(db:Session=Depends(get_db)): return [{'id':x.id,'name':x.name,'description':x.description,'category':x.category,'rarity':x.rarity,'price':x.price,'currency':x.currency} for x in db.query(Item).all()]
+@app.get('/api/inventory')
+def inventory(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization); return [{'id':i.id,'item_id':i.item_id,'quantity':i.quantity} for i in db.query(Inventory).filter_by(player_id=p.id)]
+@app.post('/api/shop/{iid}/buy')
+def buy(iid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization); i=db.get(Item,iid)
+ if not i: raise HTTPException(404,'Предмет не найден')
+ if i.currency=='FC':
+  if p.coins<i.price: raise HTTPException(400,'Недостаточно FC')
+  p.coins-=i.price
+ else:
+  if p.cash<i.price: raise HTTPException(400,'Недостаточно ₽')
+  p.cash-=i.price
+ inv=db.query(Inventory).filter_by(player_id=p.id,item_id=i.id).first()
+ if inv: inv.quantity+=1
+ else: db.add(Inventory(player_id=p.id,item_id=i.id))
+ db.add(Transaction(player_id=p.id,currency=i.currency,amount=-i.price,description='Покупка: '+i.name)); db.commit(); return out(p)
+@app.get('/api/donations/packages')
+def packages(): return [{'code':k,'coins':v[0],'price':v[1],'currency':'EUR'} for k,v in PACKAGES.items()]
+@app.post('/api/donations/order')
+def order(d:Donation,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization)
+ if d.package not in PACKAGES: raise HTTPException(400,'Пакет не найден')
+ c,a=PACKAGES[d.package]; o=DonationOrder(player_id=p.id,package=d.package,coins=c,amount=a,status='pending'); db.add(o); db.commit(); db.refresh(o); return {'id':o.id,'status':'pending','coins':c,'amount':a,'currency':'EUR'}
+@app.get('/api/donations/orders')
+def orders(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+ p=current(db,authorization); return [{'id':o.id,'package':o.package,'coins':o.coins,'amount':o.amount,'status':o.status} for o in db.query(DonationOrder).filter_by(player_id=p.id)]
+@app.get('/api/vip')
+def vip(): return {'tiers':[{'name':'VIP','price':250,'bonus':'+10% XP'},{'name':'VIP+','price':600,'bonus':'+15% XP'},{'name':'ELITE','price':1200,'bonus':'+25% XP'}]}
+@app.get('/api/vehicles')
+def vehicles(db:Session=Depends(get_db)): return [{'id':x.id,'name':x.name,'price':x.price,'power':x.power,'class':x.class_name} for x in db.query(Vehicle).all()]
+@app.get('/api/properties')
+def properties(db:Session=Depends(get_db)): return [{'id':x.id,'name':x.name,'price':x.price,'district':x.district,'income':x.income} for x in db.query(Property).all()]
+@app.get('/api/companies')
+def companies(): return []
+@app.get('/api/districts')
+def districts(): return [{'id':1,'name':'Центр'},{'id':2,'name':'Промзона'},{'id':3,'name':'Премиум'}]
+@app.get('/api/events')
+def events(): return [{'id':1,'title':'Новый рабочий день','description':'Город активен.'}]
+@app.get('/api/leaderboard')
+def leaderboard(db:Session=Depends(get_db)):
+ rows=db.query(Player).order_by(Player.level.desc(),Player.xp.desc()).limit(100).all(); return [{'rank':i+1,'id':p.id,'nickname':p.nickname,'level':p.level,'xp':p.xp,'reputation':p.reputation,'cash':p.cash} for i,p in enumerate(rows)]
+dist=Path(__file__).resolve().parents[1]/'frontend'/'dist'
+if dist.exists(): app.mount('/assets',StaticFiles(directory=dist/'assets'),name='assets')
+@app.get('/')
+def root():
+ index=dist/'index.html'; return FileResponse(index) if index.exists() else {'service':'FENIX CITY V2','status':'online','docs':'/docs'}
+@app.get('/{path:path}')
+def spa(path:str):
+ if path.startswith('api/'): raise HTTPException(404,'Not Found')
+ index=dist/'index.html'
+ if index.exists(): return FileResponse(index)
+ raise HTTPException(404,'Frontend build not found')

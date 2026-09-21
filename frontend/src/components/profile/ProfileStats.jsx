@@ -1,0 +1,2 @@
+import Card from "../common/Card";
+export default function ProfileStats({player}){return <div className="stat-grid"><Card><small>Заработано</small><strong>{Math.round(player.total_earned).toLocaleString()} ₽</strong></Card><Card><small>Работ выполнено</small><strong>{player.jobs_completed}</strong></Card><Card><small>Репутация</small><strong>{player.reputation}</strong></Card><Card><small>FENIX Coins</small><strong>{player.coins} FC</strong></Card></div>}

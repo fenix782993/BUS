@@ -1,0 +1,1 @@
+import Card from "../common/Card";export default function CityOverview(){return <Card className="city-hero"><small>FENIX CITY</small><h2>Город живёт вместе с игроками</h2><p>Работа, бизнес, транспорт, имущество и экономика связаны общей системой прогресса.</p></Card>}

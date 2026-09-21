@@ -1,0 +1,1 @@
+export default function PageHeader({title,subtitle,action,onAction}){return <header className="head"><div><small>FENIX CITY</small><h1>{title}</h1>{subtitle&&<p className="muted">{subtitle}</p>}</div>{action&&<button onClick={onAction}>{action}</button>}</header>}

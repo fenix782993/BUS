@@ -1,0 +1,1 @@
+import {NAV} from "../../data/navigation";export default function MobileNav({page,setPage}){return <div className="mobile">{NAV.slice(0,5).map(({id,icon:Icon})=><button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}><Icon size={19}/></button>)}</div>}

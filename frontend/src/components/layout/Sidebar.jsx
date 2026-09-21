@@ -1,0 +1,1 @@
+import {NAV} from "../../data/navigation";export default function Sidebar({page,setPage}){return <aside><div className="logo">FENIX <b>CITY</b></div>{NAV.map(({id,label,icon:Icon})=><button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}><Icon size={17}/>{label}</button>)}</aside>}

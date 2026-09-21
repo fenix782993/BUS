@@ -1,0 +1,1 @@
+import Card from "../common/Card";export default function DistrictCard({item}){return <Card><small>DISTRICT</small><h2>{item.name}</h2><p>Активная зона города.</p><button>Открыть район</button></Card>}

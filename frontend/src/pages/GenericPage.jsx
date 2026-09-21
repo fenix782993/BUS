@@ -1,0 +1,1 @@
+import Card from "../components/common/Card";import PageHeader from "../components/layout/PageHeader";export default function GenericPage({title,text}){return <><PageHeader title={title}/><Card><h2>{text}</h2><p className="muted">Раздел подключён к модульной архитектуре FENIX CITY V2.</p></Card></>}

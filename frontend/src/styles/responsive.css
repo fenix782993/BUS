@@ -1,0 +1,2 @@
+
+@media(max-width:700px){.stat-grid{grid-template-columns:1fr 1fr}.inventory{grid-template-columns:1fr 1fr}.leader{grid-template-columns:40px 1fr 70px}.leader strong{display:none}}
