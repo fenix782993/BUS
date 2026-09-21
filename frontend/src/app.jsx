@@ -1,150 +1,90 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-import {
-  Activity,
-  ArrowUpRight,
-  Banknote,
-  BarChart3,
-  Bell,
-  Building2,
-  Car,
-  ChevronRight,
-  CircleDollarSign,
-  Crown,
-  Flame,
-  Gauge,
-  Globe2,
-  Home,
-  LayoutDashboard,
-  Map,
-  Menu,
-  Moon,
-  Package,
-  RefreshCw,
-  Search,
-  Settings,
-  Shield,
-  Sparkles,
-  Star,
-  TrendingDown,
-  TrendingUp,
-  Trophy,
-  User,
-  Wallet,
-  X,
-  Zap,
-} from "lucide-react";
-
-
-const API =
-  (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-
+const API = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 async function api(path, options = {}) {
-  const response = await fetch(
-    `${API}/api${path}`,
-    {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-    }
-  );
+  const response = await fetch(`${API}/api${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
 
-  const data = await response
-    .json()
-    .catch(() => ({}));
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     throw new Error(
       data.detail ||
-      data.message ||
-      `Ошибка сервера: ${response.status}`
+        data.message ||
+        `Ошибка сервера: ${response.status}`
     );
   }
 
   return data;
 }
 
-
 const money = (value) =>
-  new Intl.NumberFormat("ru-RU").format(
-    Number(value || 0)
+  new Intl.NumberFormat("ru-RU").format(Number(value || 0));
+
+const num = (value) =>
+  new Intl.NumberFormat("ru-RU").format(Number(value || 0));
+
+function Icon({ children, className = "" }) {
+  return (
+    <span className={`ui-icon ${className}`} aria-hidden="true">
+      {children}
+    </span>
   );
+}
 
-
-const number = (value) =>
-  new Intl.NumberFormat("ru-RU").format(
-    Number(value || 0)
-  );
-
-
-const clamp = (
-  value,
-  min,
-  max
-) =>
-  Math.min(
-    Math.max(value, min),
-    max
-  );
-
+const ICONS = {
+  home: "⌂",
+  city: "▦",
+  work: "⚡",
+  business: "▣",
+  garage: "▰",
+  market: "↗",
+  ranking: "♛",
+  profile: "●",
+  settings: "⚙",
+  search: "⌕",
+  refresh: "↻",
+  money: "$",
+  energy: "ϟ",
+  xp: "✦",
+  users: "♙",
+  building: "▥",
+  car: "▰",
+  trophy: "♛",
+  arrow: "→",
+  close: "×",
+  check: "✓",
+  location: "⌖",
+  chart: "▥",
+  shield: "◆",
+};
 
 function App() {
-  const [playerId, setPlayerId] =
-    useState(
-      localStorage.getItem(
-        "fenix_city_player"
-      )
-    );
+  const [playerId, setPlayerId] = useState(
+    localStorage.getItem("fenix_city_player")
+  );
 
-  const [player, setPlayer] =
-    useState(null);
+  const [player, setPlayer] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [properties, setProperties] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [tasks, setTasks] = useState([]);
 
-  const [companies, setCompanies] =
-    useState([]);
-
-  const [districts, setDistricts] =
-    useState([]);
-
-  const [events, setEvents] =
-    useState([]);
-
-  const [leaderboard, setLeaderboard] =
-    useState([]);
-
-  const [properties, setProperties] =
-    useState([]);
-
-  const [vehicles, setVehicles] =
-    useState([]);
-
-  const [tasks, setTasks] =
-    useState([]);
-
-  const [page, setPage] =
-    useState("dashboard");
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [mobileMenu, setMobileMenu] =
-    useState(false);
-
-  const [nickname, setNickname] =
-    useState("");
-
-  const [search, setSearch] =
-    useState("");
-
+  const [page, setPage] = useState("dashboard");
+  const [nickname, setNickname] = useState("");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const loadData = async () => {
     if (!playerId) return;
@@ -173,65 +113,59 @@ function App() {
         api("/tasks"),
       ]);
 
-      setPlayer(
-        playerData.player ||
-        playerData
-      );
+      setPlayer(playerData.player || playerData);
 
       setCompanies(
         companiesData.companies ||
-        companiesData ||
-        []
+          companiesData ||
+          []
       );
 
       setDistricts(
         districtsData.districts ||
-        districtsData ||
-        []
+          districtsData ||
+          []
       );
 
       setEvents(
         eventsData.events ||
-        eventsData ||
-        []
+          eventsData ||
+          []
       );
 
       setLeaderboard(
-        leaderboardData.players ||
         leaderboardData.leaderboard ||
-        leaderboardData ||
-        []
+          leaderboardData.players ||
+          []
       );
 
       setProperties(
         propertiesData.properties ||
-        propertiesData ||
-        []
+          propertiesData ||
+          []
       );
 
       setVehicles(
         vehiclesData.vehicles ||
-        vehiclesData ||
-        []
+          vehiclesData ||
+          []
       );
 
       setTasks(
         tasksData.tasks ||
-        tasksData ||
-        []
+          tasksData ||
+          []
       );
     } catch (err) {
       console.error(err);
-
       setError(
         err.message ||
-        "Не удалось загрузить город."
+          "Не удалось загрузить данные города."
       );
     } finally {
       setLoading(false);
     }
   };
-
 
   useEffect(() => {
     if (playerId) {
@@ -239,22 +173,11 @@ function App() {
     }
   }, [playerId]);
 
-
   const register = async () => {
-    const cleanNickname =
-      nickname.trim();
+    const name = nickname.trim();
 
-    if (!cleanNickname) {
-      setError(
-        "Введи никнейм."
-      );
-      return;
-    }
-
-    if (cleanNickname.length < 3) {
-      setError(
-        "Никнейм должен быть минимум 3 символа."
-      );
+    if (name.length < 2) {
+      setError("Никнейм должен содержать минимум 2 символа.");
       return;
     }
 
@@ -262,17 +185,12 @@ function App() {
     setError("");
 
     try {
-      const data =
-        await api(
-          "/register",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              nickname:
-                cleanNickname,
-            }),
-          }
-        );
+      const data = await api("/register", {
+        method: "POST",
+        body: JSON.stringify({
+          nickname: name,
+        }),
+      });
 
       const id =
         data.player?.id ||
@@ -287,21 +205,20 @@ function App() {
 
       localStorage.setItem(
         "fenix_city_player",
-        id
+        String(id)
       );
 
-      setPlayerId(id);
+      setPlayerId(String(id));
       setNickname("");
     } catch (err) {
       setError(
         err.message ||
-        "Ошибка регистрации."
+          "Ошибка регистрации."
       );
     } finally {
       setLoading(false);
     }
   };
-
 
   const logout = () => {
     localStorage.removeItem(
@@ -311,20 +228,11 @@ function App() {
     setPlayerId(null);
     setPlayer(null);
     setPage("dashboard");
+    setMobileOpen(false);
   };
 
-
-  const action = async () => {
+  const work = async () => {
     if (!player) return;
-
-    if (
-      Number(player.energy || 0) < 10
-    ) {
-      setError(
-        "Недостаточно энергии."
-      );
-      return;
-    }
 
     setLoading(true);
     setError("");
@@ -342,15 +250,11 @@ function App() {
 
       await loadData();
     } catch (err) {
-      setError(
-        err.message ||
-        "Не удалось выполнить работу."
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-
 
   const rest = async () => {
     if (!player) return;
@@ -368,43 +272,13 @@ function App() {
 
       await loadData();
     } catch (err) {
-      setError(
-        err.message ||
-        "Не удалось восстановить энергию."
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-
-  const marketTick = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      await api(
-        "/market/tick",
-        {
-          method: "POST",
-        }
-      );
-
-      await loadData();
-    } catch (err) {
-      setError(
-        err.message ||
-        "Рынок временно недоступен."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const buyProperty = async (
-    id
-  ) => {
+  const buyProperty = async (id) => {
     if (!player) return;
 
     setLoading(true);
@@ -420,19 +294,13 @@ function App() {
 
       await loadData();
     } catch (err) {
-      setError(
-        err.message ||
-        "Не удалось купить недвижимость."
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-
-  const buyVehicle = async (
-    id
-  ) => {
+  const buyVehicle = async (id) => {
     if (!player) return;
 
     setLoading(true);
@@ -448,105 +316,84 @@ function App() {
 
       await loadData();
     } catch (err) {
-      setError(
-        err.message ||
-        "Не удалось купить транспорт."
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const updateMarket = async () => {
+    setLoading(true);
+    setError("");
 
-  const levelProgress =
-    useMemo(() => {
-      if (!player) return 0;
+    try {
+      await api("/market/tick", {
+        method: "POST",
+      });
 
-      const rep =
-        Number(
-          player.reputation || 0
-        );
+      await loadData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const level =
-        Number(
-          player.level || 1
-        );
+  const levelProgress = useMemo(() => {
+    if (!player) return 0;
 
-      const current =
-        (level - 1) * 100;
+    const level = Number(
+      player.level || 1
+    );
 
-      const next =
-        level * 100;
+    const xp = Number(
+      player.xp || 0
+    );
 
-      if (
-        next <= current
-      ) {
-        return 100;
-      }
+    const current = (level - 1) * 100;
+    const next = level * 100;
 
-      return clamp(
-        ((rep - current) /
+    if (next <= current) return 100;
+
+    return Math.max(
+      0,
+      Math.min(
+        100,
+        ((xp - current) /
           (next - current)) *
-          100,
-        0,
-        100
-      );
-    }, [player]);
-
-
-  const filteredCompanies =
-    companies.filter(
-      (company) =>
-        `${company.name || ""} ${
-          company.sector || ""
-        }`
-          .toLowerCase()
-          .includes(
-            search.toLowerCase()
-          )
+          100
+      )
     );
+  }, [player]);
 
+  const filteredCompanies = companies.filter(
+    (item) =>
+      `${item.name || ""} ${
+        item.type || ""
+      } ${item.district || ""}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
+  );
 
-  const filteredProperties =
-    properties.filter(
-      (property) =>
-        `${property.name || ""} ${
-          property.district || ""
-        }`
-          .toLowerCase()
-          .includes(
-            search.toLowerCase()
-          )
-    );
+  const filteredProperties = properties.filter(
+    (item) =>
+      `${item.name || ""} ${
+        item.type || ""
+      } ${item.district || ""}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
+  );
 
+  const filteredVehicles = vehicles.filter(
+    (item) =>
+      `${item.name || ""} ${
+        item.type || ""
+      } ${item.class || ""}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
+  );
 
-  const filteredVehicles =
-    vehicles.filter(
-      (vehicle) =>
-        `${vehicle.name || ""} ${
-          vehicle.category || ""
-        }`
-          .toLowerCase()
-          .includes(
-            search.toLowerCase()
-          )
-    );
-
-
-  if (!playerId) {
-    return (
-      <LoginScreen
-        nickname={nickname}
-        setNickname={setNickname}
-        register={register}
-        loading={loading}
-        error={error}
-      />
-    );
-  }
-
-
-  if (!player) {
+  if (!playerId || !player) {
     return (
       <LoginScreen
         nickname={nickname}
@@ -555,71 +402,66 @@ function App() {
         loading={loading}
         error={
           error ||
-          "Загрузка FENIX CITY..."
+          (!playerId
+            ? ""
+            : "Загрузка FENIX CITY...")
         }
       />
     );
   }
 
+  const navigate = (nextPage) => {
+    setPage(nextPage);
+    setMobileOpen(false);
+  };
 
   return (
     <div className="city-app">
-
-      <TopBar
+      <Topbar
         player={player}
-        loading={loading}
         search={search}
         setSearch={setSearch}
-        onMenu={() =>
-          setMobileMenu(true)
-        }
-        onRefresh={loadData}
+        loading={loading}
+        refresh={loadData}
+        openMenu={() => setMobileOpen(true)}
       />
 
-      <div className="app-layout">
-
+      <div className="layout">
         <Sidebar
           page={page}
-          setPage={setPage}
+          navigate={navigate}
           player={player}
           logout={logout}
         />
 
-        {mobileMenu && (
-          <MobileSidebar
+        {mobileOpen && (
+          <MobileMenu
             page={page}
-            setPage={setPage}
+            navigate={navigate}
             player={player}
             logout={logout}
-            close={() =>
-              setMobileMenu(false)
-            }
+            close={() => setMobileOpen(false)}
           />
         )}
 
-        <main className="main-content">
-
+        <main className="main">
           {error && (
-            <div className="error-banner">
-
-              <div className="error-banner-left">
-                <Bell size={18} />
+            <div className="alert">
+              <div>
+                <Icon>{ICONS.shield}</Icon>
                 <span>{error}</span>
               </div>
 
               <button
-                onClick={() =>
-                  setError("")
-                }
+                onClick={() => setError("")}
               >
-                <X size={16} />
+                {ICONS.close}
               </button>
-
             </div>
           )}
 
           {loading && (
-            <div className="loading-line">
+            <div className="loading-bar">
               <span />
             </div>
           )}
@@ -632,102 +474,78 @@ function App() {
               events={events}
               leaderboard={leaderboard}
               tasks={tasks}
-              levelProgress={
-                levelProgress
-              }
-              go={setPage}
-              action={action}
+              levelProgress={levelProgress}
+              navigate={navigate}
+              work={work}
               rest={rest}
             />
           )}
 
           {page === "city" && (
             <City
-              districts={districts}
               player={player}
+              districts={districts}
+              events={events}
             />
           )}
 
           {page === "work" && (
             <Work
               player={player}
-              action={action}
+              progress={levelProgress}
+              work={work}
               rest={rest}
-              levelProgress={
-                levelProgress
-              }
             />
           )}
 
           {page === "business" && (
             <Business
-              properties={
-                filteredProperties
-              }
-              companies={
-                filteredCompanies
-              }
               player={player}
-              buyProperty={
-                buyProperty
-              }
+              properties={filteredProperties}
+              companies={filteredCompanies}
+              buyProperty={buyProperty}
             />
           )}
 
           {page === "garage" && (
             <Garage
-              vehicles={
-                filteredVehicles
-              }
               player={player}
-              buyVehicle={
-                buyVehicle
-              }
+              vehicles={filteredVehicles}
+              buyVehicle={buyVehicle}
             />
           )}
 
           {page === "market" && (
             <Market
-              companies={
-                filteredCompanies
-              }
-              marketTick={
-                marketTick
-              }
+              companies={filteredCompanies}
+              updateMarket={updateMarket}
             />
           )}
 
           {page === "ranking" && (
             <Ranking
-              leaderboard={
-                leaderboard
-              }
               player={player}
+              leaderboard={leaderboard}
             />
           )}
 
           {page === "profile" && (
             <Profile
               player={player}
-              levelProgress={
-                levelProgress
-              }
+              progress={levelProgress}
               logout={logout}
             />
           )}
-
         </main>
       </div>
 
-      <MobileNavigation
+      <MobileNav
         page={page}
-        setPage={setPage}
+        navigate={navigate}
       />
-
     </div>
   );
 }
-
 
 /* ============================================================
    LOGIN
@@ -741,18 +559,14 @@ function LoginScreen({
   error,
 }) {
   return (
-    <div className="login-screen">
-
-      <div className="login-background">
-        <div className="login-orb orb-one" />
-        <div className="login-orb orb-two" />
-        <div className="login-grid" />
-      </div>
+    <div className="login">
+      <div className="login-glow glow-a" />
+      <div className="login-glow glow-b" />
+      <div className="login-grid" />
 
       <div className="login-card">
-
         <div className="login-logo">
-          <div className="logo-mark">
+          <div className="logo-box">
             F
           </div>
 
@@ -762,18 +576,17 @@ function LoginScreen({
           </div>
         </div>
 
-        <div className="login-title">
+        <div className="login-heading">
           Твой город.
           <br />
           <span>Твоя история.</span>
         </div>
 
-        <p className="login-description">
-          Построй капитал, покупай
-          недвижимость, развивайся,
-          следи за рынком и становись
-          одним из самых влиятельных
-          жителей FENIX CITY.
+        <p className="login-text">
+          Создай персонажа, зарабатывай,
+          покупай недвижимость и автомобили,
+          развивай бизнес и поднимайся
+          в рейтинге FENIX CITY.
         </p>
 
         {error && (
@@ -782,183 +595,132 @@ function LoginScreen({
           </div>
         )}
 
-        <div className="login-form">
+        <label className="field-label">
+          НИКНЕЙМ
+        </label>
 
-          <label>
-            ТВОЙ НИКНЕЙМ
-          </label>
+        <div className="input">
+          <Icon>{ICONS.profile}</Icon>
 
-          <div className="input-wrap">
-
-            <User size={18} />
-
-            <input
-              value={nickname}
-              onChange={(e) =>
-                setNickname(
-                  e.target.value
-                )
+          <input
+            value={nickname}
+            onChange={(e) =>
+              setNickname(e.target.value)
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                register();
               }
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter"
-                ) {
-                  register();
-                }
-              }}
-              placeholder="Например: Fenix"
-              maxLength={24}
-            />
-
-          </div>
-
-          <button
-            className="primary-button login-button"
-            onClick={register}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <RefreshCw
-                  size={18}
-                  className="spin"
-                />
-                СОЗДАЁМ ГОРОД...
-              </>
-            ) : (
-              <>
-                ВОЙТИ В FENIX CITY
-                <ArrowUpRight
-                  size={18}
-                />
-              </>
-            )}
-          </button>
-
+            }}
+            placeholder="Например: Fenix"
+            maxLength={24}
+          />
         </div>
 
-        <div className="login-features">
+        <button
+          className="button primary wide"
+          onClick={register}
+          disabled={loading}
+        >
+          {loading
+            ? "СОЗДАНИЕ..."
+            : "ВОЙТИ В FENIX CITY"}
+          <span>{ICONS.arrow}</span>
+        </button>
 
-          <div>
-            <Wallet size={17} />
-            Экономика
-          </div>
-
-          <div>
-            <Building2 size={17} />
-            Бизнес
-          </div>
-
-          <div>
-            <Car size={17} />
-            Транспорт
-          </div>
-
-          <div>
-            <Trophy size={17} />
-            Рейтинг
-          </div>
-
+        <div className="login-points">
+          <span>
+            <b>$</b> Экономика
+          </span>
+          <span>
+            <b>▣</b> Бизнес
+          </span>
+          <span>
+            <b>▰</b> Транспорт
+          </span>
+          <span>
+            <b>♛</b> Рейтинг
+          </span>
         </div>
-
       </div>
     </div>
   );
 }
 
-
 /* ============================================================
-   TOP BAR
+   TOPBAR
 ============================================================ */
 
-function TopBar({
+function Topbar({
   player,
-  loading,
   search,
   setSearch,
-  onMenu,
-  onRefresh,
+  loading,
+  refresh,
+  openMenu,
 }) {
   return (
     <header className="topbar">
-
-      <div className="topbar-left">
-
+      <div className="brand-area">
         <button
-          className="mobile-menu-button"
-          onClick={onMenu}
+          className="mobile-menu"
+          onClick={openMenu}
         >
-          <Menu size={21} />
+          ☰
         </button>
 
         <div className="brand">
-
-          <div className="brand-symbol">
+          <div className="brand-icon">
             F
           </div>
 
-          <div className="brand-text">
+          <div>
             <strong>FENIX</strong>
             <span>CITY</span>
           </div>
-
         </div>
-
       </div>
 
-      <div className="top-search">
-
-        <Search size={17} />
+      <div className="search-box">
+        <Icon>{ICONS.search}</Icon>
 
         <input
           value={search}
           onChange={(e) =>
-            setSearch(
-              e.target.value
-            )
+            setSearch(e.target.value)
           }
           placeholder="Поиск по городу..."
         />
-
       </div>
 
-      <div className="topbar-right">
-
-        <div className="live-status">
-          <span />
+      <div className="top-right">
+        <div className="live">
+          <i />
           LIVE
         </div>
 
         <button
-          className="icon-button"
-          onClick={onRefresh}
+          className="refresh"
+          onClick={refresh}
         >
-          <RefreshCw
-            size={17}
+          <span
             className={
-              loading
-                ? "spin"
-                : ""
+              loading ? "rotate" : ""
             }
-          />
+          >
+            {ICONS.refresh}
+          </span>
         </button>
 
-        <div className="top-money">
-          <CircleDollarSign
-            size={17}
-          />
-
-          <strong>
-            $
-            {money(
-              player.cash ??
-              player.money
-            )}
-          </strong>
+        <div className="money">
+          <span>$</span>
+          {money(
+            player.money ??
+              player.cash
+          )}
         </div>
 
-        <div className="top-profile">
-
+        <div className="user-mini">
           <div className="avatar">
             {(
               player.nickname ||
@@ -968,148 +730,103 @@ function TopBar({
               .toUpperCase()}
           </div>
 
-          <div className="top-profile-text">
+          <div>
             <strong>
               {player.nickname}
             </strong>
 
-            <span>
-              LVL {player.level}
-            </span>
+            <small>
+              LVL {player.level || 1}
+            </small>
           </div>
-
         </div>
-
       </div>
-
     </header>
   );
 }
-
 
 /* ============================================================
    SIDEBAR
 ============================================================ */
 
+const MENU = [
+  ["dashboard", "Главная", "home"],
+  ["city", "Город", "city"],
+  ["work", "Работа", "work"],
+  ["business", "Бизнес", "business"],
+  ["garage", "Гараж", "garage"],
+  ["market", "Рынок", "market"],
+  ["ranking", "Рейтинг", "ranking"],
+];
+
 function Sidebar({
   page,
-  setPage,
+  navigate,
   player,
   logout,
 }) {
-  const items = [
-    [
-      "dashboard",
-      "Главная",
-      LayoutDashboard,
-    ],
-    [
-      "city",
-      "Город",
-      Map,
-    ],
-    [
-      "work",
-      "Работа",
-      Zap,
-    ],
-    [
-      "business",
-      "Бизнес",
-      Building2,
-    ],
-    [
-      "garage",
-      "Гараж",
-      Car,
-    ],
-    [
-      "market",
-      "Рынок",
-      BarChart3,
-    ],
-    [
-      "ranking",
-      "Рейтинг",
-      Trophy,
-    ],
-  ];
-
   return (
     <aside className="sidebar">
-
-      <div className="sidebar-section">
-
-        <div className="sidebar-label">
+      <div className="side-group">
+        <div className="side-label">
           ГОРОД
         </div>
 
-        {items.map(
-          ([
-            id,
-            label,
-            Icon,
-          ]) => (
+        {MENU.map(
+          ([id, label, icon]) => (
             <button
               key={id}
-              className={`nav-item ${
+              className={`side-item ${
                 page === id
                   ? "active"
                   : ""
               }`}
               onClick={() =>
-                setPage(id)
+                navigate(id)
               }
             >
-              <Icon size={18} />
+              <Icon>
+                {ICONS[icon]}
+              </Icon>
 
-              <span>
-                {label}
-              </span>
+              <span>{label}</span>
 
               {id === "market" && (
-                <span className="nav-live">
-                  LIVE
-                </span>
+                <em>LIVE</em>
               )}
             </button>
           )
         )}
-
       </div>
 
-      <div className="sidebar-section">
-
-        <div className="sidebar-label">
+      <div className="side-group">
+        <div className="side-label">
           АККАУНТ
         </div>
 
         <button
-          className={`nav-item ${
+          className={`side-item ${
             page === "profile"
               ? "active"
               : ""
           }`}
           onClick={() =>
-            setPage("profile")
+            navigate("profile")
           }
         >
-          <User size={18} />
+          <Icon>{ICONS.profile}</Icon>
           <span>Профиль</span>
         </button>
 
-        <button className="nav-item">
-          <Settings size={18} />
+        <button className="side-item disabled">
+          <Icon>{ICONS.settings}</Icon>
           <span>Настройки</span>
         </button>
-
       </div>
 
-      <div className="sidebar-bottom">
-
-        <div className="sidebar-player">
-
-          <div className="sidebar-avatar">
+      <div className="side-bottom">
+        <div className="side-user">
+          <div className="avatar small">
             {(
               player.nickname ||
               "F"
@@ -1122,291 +839,72 @@ function Sidebar({
             <strong>
               {player.nickname}
             </strong>
-
             <span>
-              ID #{player.id}
+              {player.job ||
+                "Гражданин"}
             </span>
           </div>
-
         </div>
 
         <button
-          className="logout-button"
+          className="logout"
           onClick={logout}
         >
-          Выйти
+          ВЫЙТИ
         </button>
-
       </div>
-
     </aside>
   );
 }
 
-
 /* ============================================================
-   MOBILE SIDEBAR
+   MOBILE MENU
 ============================================================ */
 
-function MobileSidebar({
+function MobileMenu({
   page,
-  setPage,
+  navigate,
   player,
   logout,
   close,
 }) {
-  const items = [
-    [
-      "dashboard",
-      "Главная",
-      LayoutDashboard,
-    ],
-    [
-      "city",
-      "Город",
-      Map,
-    ],
-    [
-      "work",
-      "Работа",
-      Zap,
-    ],
-    [
-      "business",
-      "Бизнес",
-      Building2,
-    ],
-    [
-      "garage",
-      "Гараж",
-      Car,
-    ],
-    [
-      "market",
-      "Рынок",
-      BarChart3,
-    ],
-    [
-      "ranking",
-      "Рейтинг",
-      Trophy,
-    ],
-    [
-      "profile",
-      "Профиль",
-      User,
-    ],
-  ];
-
-  const navigate = (
-    id
-  ) => {
-    setPage(id);
-    close();
-  };
-
   return (
-    <div className="mobile-sidebar-overlay">
-
-      <div className="mobile-sidebar">
-
+    <div
+      className="mobile-overlay"
+      onClick={close}
+    >
+      <aside
+        className="mobile-sidebar"
+        onClick={(e) =>
+          e.stopPropagation()
+        }
+      >
         <div className="mobile-sidebar-head">
-
           <div className="brand">
-            <div className="brand-symbol">
+            <div className="brand-icon">
               F
             </div>
-
-            <div className="brand-text">
-              <strong>
-                FENIX
-              </strong>
-              <span>
-                CITY
-              </span>
+            <div>
+              <strong>FENIX</strong>
+              <span>CITY</span>
             </div>
           </div>
 
-          <button
-            className="icon-button"
-            onClick={close}
-          >
-            <X size={20} />
+          <button onClick={close}>
+            ×
           </button>
-
         </div>
 
-        <div className="mobile-sidebar-player">
-
-          <div className="avatar">
-            {(
-              player.nickname ||
-              "F"
-            )
-              .slice(0, 1)
-              .toUpperCase()}
-          </div>
-
-          <div>
-            <strong>
-              {player.nickname}
-            </strong>
-
-            <span>
-              Уровень {player.level}
-            </span>
-          </div>
-
-        </div>
-
-        <div className="mobile-sidebar-links">
-
-          {items.map(
-            ([
-              id,
-              label,
-              Icon,
-            ]) => (
-              <button
-                key={id}
-                className={
-                  page === id
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  navigate(id)
-                }
-              >
-                <Icon size={19} />
-                {label}
-                <ChevronRight
-                  size={16}
-                />
-              </button>
-            )
-          )}
-
-        </div>
-
-        <button
-          className="mobile-logout"
-          onClick={logout}
-        >
-          Выйти из города
-        </button>
-
-      </div>
-
+        <Sidebar
+          page={page}
+          navigate={navigate}
+          player={player}
+          logout={logout}
+        />
+      </aside>
     </div>
   );
 }
-
-
-/* ============================================================
-   MOBILE NAV
-============================================================ */
-
-function MobileNavigation({
-  page,
-  setPage,
-}) {
-  const items = [
-    [
-      "dashboard",
-      "Главная",
-      LayoutDashboard,
-    ],
-    [
-      "city",
-      "Город",
-      Map,
-    ],
-    [
-      "work",
-      "Работа",
-      Zap,
-    ],
-    [
-      "business",
-      "Бизнес",
-      Building2,
-    ],
-    [
-      "profile",
-      "Профиль",
-      User,
-    ],
-  ];
-
-  return (
-    <nav className="mobile-navigation">
-
-      {items.map(
-        ([
-          id,
-          label,
-          Icon,
-        ]) => (
-          <button
-            key={id}
-            className={
-              page === id
-                ? "active"
-                : ""
-            }
-            onClick={() =>
-              setPage(id)
-            }
-          >
-            <Icon size={19} />
-            <span>{label}</span>
-          </button>
-        )
-      )}
-
-    </nav>
-  );
-}
-
-
-/* ============================================================
-   HEADER
-============================================================ */
-
-function PageHeader({
-  eyebrow,
-  title,
-  description,
-  action,
-}) {
-  return (
-    <div className="page-header">
-
-      <div>
-
-        {eyebrow && (
-          <div className="eyebrow">
-            {eyebrow}
-          </div>
-        )}
-
-        <h1>{title}</h1>
-
-        {description && (
-          <p>
-            {description}
-          </p>
-        )}
-
-      </div>
-
-      {action}
-
-    </div>
-  );
-}
-
 
 /* ============================================================
    DASHBOARD
@@ -1420,395 +918,345 @@ function Dashboard({
   leaderboard,
   tasks,
   levelProgress,
-  go,
-  action,
+  navigate,
+  work,
   rest,
 }) {
-  const event =
-    events[0];
-
-  const cash =
-    player.cash ??
-    player.money ??
-    0;
-
-  const reputation =
-    player.reputation ??
-    player.rating ??
-    0;
+  const currentRank =
+    leaderboard.findIndex(
+      (x) =>
+        String(x.id) ===
+        String(player.id)
+    ) + 1;
 
   return (
-    <>
+    <div>
+      <PageHeader
+        eyebrow="FENIX CITY / DASHBOARD"
+        title={`Добро пожаловать, ${
+          player.nickname
+        }`}
+        description="Твой личный центр управления городом."
+      />
+
       <section className="hero">
+        <div className="hero-copy">
+          <span className="hero-tag">
+            <i /> ГОРОД АКТИВЕН
+          </span>
 
-        <div className="hero-bg">
-          <div className="hero-glow" />
-          <div className="hero-lines" />
-        </div>
-
-        <div className="hero-content">
-
-          <div className="hero-status">
-            <span />
-            FENIX CITY ONLINE
-          </div>
-
-          <h1>
-            ТВОЙ ГОРОД.
+          <h2>
+            Создай свою
             <br />
-            <em>ТВОИ ПРАВИЛА.</em>
-          </h1>
+            <span>империю.</span>
+          </h2>
 
           <p>
-            Развивай персонажа,
-            зарабатывай, покупай
-            активы и становись частью
-            экономики FENIX CITY.
+            Работай, развивай бизнес,
+            покупай недвижимость и
+            становись влиятельнее.
           </p>
 
           <div className="hero-actions">
-
             <button
-              className="primary-button"
+              className="button primary"
               onClick={() =>
-                go("work")
+                navigate("work")
               }
             >
               НАЧАТЬ ЗАРАБАТЫВАТЬ
-              <ArrowUpRight
-                size={18}
-              />
+              <span>{ICONS.arrow}</span>
             </button>
 
             <button
-              className="secondary-button"
+              className="button secondary"
               onClick={() =>
-                go("city")
+                navigate("city")
               }
             >
-              <Map size={17} />
               ИССЛЕДОВАТЬ ГОРОД
             </button>
-
           </div>
-
         </div>
 
-        <div className="hero-card">
-
-          <div className="hero-card-top">
-            <span>
-              ТВОЙ БАЛАНС
-            </span>
-
-            <Wallet size={17} />
+        <div className="hero-stats">
+          <div className="hero-orb">
+            F
           </div>
 
-          <strong>
-            ${money(cash)}
-          </strong>
+          <div className="hero-level">
+            <div>
+              <span>
+                УРОВЕНЬ
+              </span>
+              <strong>
+                {player.level || 1}
+              </strong>
+            </div>
 
-          <div className="hero-card-bottom">
-
-            <span>
-              УРОВЕНЬ {player.level}
-            </span>
-
-            <div className="mini-progress">
+            <div className="progress">
               <span
                 style={{
-                  width:
-                    `${levelProgress}%`,
+                  width: `${levelProgress}%`,
                 }}
               />
             </div>
 
+            <small>
+              {num(
+                player.xp || 0
+              )} XP
+            </small>
           </div>
-
         </div>
-
       </section>
 
-
-      <section className="stats-grid">
-
-        <StatCard
-          icon={Banknote}
-          label="Капитал"
-          value={`$${money(cash)}`}
-          accent="orange"
-          note="текущий баланс"
+      <div className="stats-grid">
+        <Stat
+          title="Баланс"
+          value={`$${money(
+            player.money
+          )}`}
+          sub="Доступные средства"
+          icon="$"
         />
 
-        <StatCard
-          icon={Star}
-          label="Репутация"
-          value={number(
-            reputation
+        <Stat
+          title="Энергия"
+          value={`${num(
+            player.energy
+          )}/100`}
+          sub="Текущее состояние"
+          icon="ϟ"
+        />
+
+        <Stat
+          title="Рейтинг"
+          value={num(
+            player.rating
           )}
-          accent="purple"
-          note="городской рейтинг"
-        />
-
-        <StatCard
-          icon={Zap}
-          label="Энергия"
-          value={`${
-            player.energy ?? 0
-          }/100`}
-          accent="blue"
-          note="доступно сейчас"
-        />
-
-        <StatCard
-          icon={Building2}
-          label="Активы"
-          value={
-            Array.isArray(
-              player.properties
-            )
-              ? player.properties.length
-              : Number(
-                  player.properties ||
-                  0
-                ) +
-                Number(
-                  player.vehicles ||
-                  0
-                )
+          sub={
+            currentRank > 0
+              ? `Позиция #${currentRank}`
+              : "Пока нет позиции"
           }
-          accent="green"
-          note="твоя собственность"
+          icon="♛"
         />
 
-      </section>
-
-
-      <div className="content-grid">
-
-        <section className="panel map-panel">
-
-          <PanelHeader
-            title="Карта города"
-            subtitle="Районы FENIX CITY"
-            icon={Map}
-            action={
-              <button
-                className="text-button"
-                onClick={() =>
-                  go("city")
-                }
-              >
-                Открыть карту
-                <ChevronRight
-                  size={15}
-                />
-              </button>
-            }
-          />
-
-          <CityMap
-            districts={districts}
-          />
-
-        </section>
-
-
-        <section className="panel event-panel">
-
-          <PanelHeader
-            title="Событие города"
-            subtitle="Прямо сейчас"
-            icon={Flame}
-          />
-
-          {event ? (
-            <div className="event-card">
-
-              <div className="event-icon">
-                <Flame size={25} />
-              </div>
-
-              <div className="event-content">
-
-                <div className="event-tag">
-                  ГОРОДСКОЕ СОБЫТИЕ
-                </div>
-
-                <h3>
-                  {event.title}
-                </h3>
-
-                <p>
-                  {event.description ||
-                    event.text ||
-                    "Активность города повышена."}
-                </p>
-
-                <div className="event-reward">
-                  <CircleDollarSign
-                    size={16}
-                  />
-                  Городское событие
-                </div>
-
-              </div>
-
-            </div>
-          ) : (
-            <Empty
-              text="Новых событий пока нет."
-            />
+        <Stat
+          title="Репутация"
+          value={num(
+            player.xp
           )}
-
-        </section>
-
+          sub="Опыт жителя"
+          icon="✦"
+        />
       </div>
 
+      <div className="dashboard-grid">
+        <Panel
+          title="Быстрые действия"
+          action="РАБОТА"
+          onAction={() =>
+            navigate("work")
+          }
+        >
+          <div className="quick-grid">
+            <button
+              className="quick-card"
+              onClick={work}
+            >
+              <div className="quick-icon">
+                ⚡
+              </div>
+              <strong>
+                Выполнить работу
+              </strong>
+              <span>
+                +$1 000 · -10 энергии
+              </span>
+            </button>
 
-      <div className="content-grid lower-grid">
+            <button
+              className="quick-card"
+              onClick={rest}
+            >
+              <div className="quick-icon">
+                +
+              </div>
+              <strong>
+                Восстановиться
+              </strong>
+              <span>
+                Энергия и здоровье
+              </span>
+            </button>
 
-        <section className="panel">
+            <button
+              className="quick-card"
+              onClick={() =>
+                navigate("business")
+              }
+            >
+              <div className="quick-icon">
+                ▣
+              </div>
+              <strong>
+                Купить недвижимость
+              </strong>
+              <span>
+                Развивай капитал
+              </span>
+            </button>
 
-          <PanelHeader
-            title="Рынок"
-            subtitle="Компании города"
-            icon={BarChart3}
-            action={
-              <button
-                className="text-button"
-                onClick={() =>
-                  go("market")
-                }
-              >
-                Весь рынок
-                <ChevronRight
-                  size={15}
-                />
-              </button>
-            }
-          />
+            <button
+              className="quick-card"
+              onClick={() =>
+                navigate("garage")
+              }
+            >
+              <div className="quick-icon">
+                ▰
+              </div>
+              <strong>
+                Автомобили
+              </strong>
+              <span>
+                Собери гараж
+              </span>
+            </button>
+          </div>
+        </Panel>
 
-          <div className="company-list">
+        <Panel
+          title="События города"
+          action="ГОРОД"
+          onAction={() =>
+            navigate("city")
+          }
+        >
+          <div className="event-list">
+            {events.length === 0 ? (
+              <Empty text="Событий пока нет." />
+            ) : (
+              events.slice(0, 4).map(
+                (event, index) => (
+                  <div
+                    className="event"
+                    key={
+                      event.id ||
+                      index
+                    }
+                  >
+                    <div className="event-icon">
+                      {index % 2 === 0
+                        ? "!"
+                        : "↗"}
+                    </div>
 
-            {companies
-              .slice(0, 5)
+                    <div>
+                      <strong>
+                        {event.title ||
+                          "Городское событие"}
+                      </strong>
+
+                      <span>
+                        {event.description ||
+                          "Активность города"}
+                      </span>
+                    </div>
+
+                    <b>
+                      {event.active
+                        ? "ACTIVE"
+                        : "ENDED"}
+                    </b>
+                  </div>
+                )
+              )
+            )}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="dashboard-grid">
+        <Panel
+          title="Районы"
+          action="ОТКРЫТЬ"
+          onAction={() =>
+            navigate("city")
+          }
+        >
+          <div className="district-list">
+            {districts
+              .slice(0, 4)
               .map(
-                (company) => (
-                  <CompanyRow
-                    key={company.id}
-                    company={company}
-                  />
+                (
+                  district,
+                  index
+                ) => (
+                  <div
+                    className="district"
+                    key={
+                      district.id ||
+                      index
+                    }
+                  >
+                    <div className="district-number">
+                      0{index + 1}
+                    </div>
+
+                    <div className="district-main">
+                      <strong>
+                        {district.name}
+                      </strong>
+
+                      <span>
+                        {district.description}
+                      </span>
+                    </div>
+
+                    <div className="district-pop">
+                      {num(
+                        district.population
+                      )}
+                      <small>
+                        жителей
+                      </small>
+                    </div>
+                  </div>
                 )
               )}
-
           </div>
+        </Panel>
 
-        </section>
-
-
-        <section className="panel">
-
-          <PanelHeader
-            title="Топ жителей"
-            subtitle="Лидеры FENIX CITY"
-            icon={Trophy}
-            action={
-              <button
-                className="text-button"
-                onClick={() =>
-                  go("ranking")
-                }
-              >
-                Весь рейтинг
-                <ChevronRight
-                  size={15}
-                />
-              </button>
-            }
-          />
-
-          <Leaderboard
-            data={
-              leaderboard.slice(
-                0,
-                5
-              )
-            }
-            currentId={
-              player.id
-            }
-          />
-
-        </section>
-
-      </div>
-
-
-      <section className="panel tasks-panel">
-
-        <PanelHeader
-          title="Следующий шаг"
-          subtitle="Развивай своего персонажа"
-          icon={Sparkles}
-        />
-
-        <div className="task-grid">
-
-          <TaskCard
-            icon={Zap}
-            title="Заработай деньги"
-            description="Выполни работу и получи награду."
-            button="ПЕРЕЙТИ К РАБОТЕ"
-            onClick={() =>
-              go("work")
-            }
-          />
-
-          <TaskCard
-            icon={Building2}
-            title="Купи недвижимость"
-            description="Создай первый городской актив."
-            button="ОТКРЫТЬ БИЗНЕС"
-            onClick={() =>
-              go("business")
-            }
-          />
-
-          <TaskCard
-            icon={Car}
-            title="Собери гараж"
-            description="Купи транспорт и расширяй коллекцию."
-            button="ОТКРЫТЬ ГАРАЖ"
-            onClick={() =>
-              go("garage")
-            }
-          />
-
-          <TaskCard
-            icon={TrendingUp}
-            title="Следи за рынком"
-            description="Изучай компании и движение цен."
-            button="ОТКРЫТЬ РЫНОК"
-            onClick={() =>
-              go("market")
-            }
-          />
-
-        </div>
-
-
-        {tasks.length > 0 && (
-          <div className="daily-tasks">
-
+        <Panel
+          title="Задания"
+          action="ВСЕ"
+        >
+          <div className="task-list">
             {tasks
-              .slice(0, 3)
+              .slice(0, 4)
               .map(
-                (task) => (
+                (
+                  task,
+                  index
+                ) => (
                   <div
-                    className="daily-task"
-                    key={task.id}
+                    className="task"
+                    key={
+                      task.id ||
+                      index
+                    }
                   >
+                    <div className="task-check">
+                      {player.completed_tasks?.includes(
+                        task.id
+                      )
+                        ? "✓"
+                        : index + 1}
+                    </div>
+
                     <div>
                       <strong>
                         {task.title}
@@ -1820,376 +1268,69 @@ function Dashboard({
                     </div>
 
                     <b>
-                      +{money(
+                      +$
+                      {money(
                         task.reward
                       )}
                     </b>
                   </div>
                 )
               )}
-
           </div>
-        )}
+        </Panel>
+      </div>
 
-      </section>
-    </>
+      <Panel
+        title="Топ жителей"
+        action="РЕЙТИНГ"
+        onAction={() =>
+          navigate("ranking")
+        }
+      >
+        <Leaderboard
+          players={leaderboard.slice(
+            0,
+            5
+          )}
+          player={player}
+        />
+      </Panel>
+
+      <div className="city-footer">
+        FENIX CITY
+        <span>
+          DIGITAL ECONOMY
+        </span>
+      </div>
+    </div>
   );
 }
-
 
 /* ============================================================
    STAT
 ============================================================ */
 
-function StatCard({
-  icon: Icon,
-  label,
+function Stat({
+  title,
   value,
-  note,
-  accent,
+  sub,
+  icon,
 }) {
   return (
-    <div
-      className={`stat-card accent-${accent}`}
-    >
-
+    <div className="stat-card">
       <div className="stat-top">
-
+        <span>{title}</span>
         <div className="stat-icon">
-          <Icon size={19} />
+          {icon}
         </div>
-
-        <span>
-          {label}
-        </span>
-
       </div>
 
-      <strong>
-        {value}
-      </strong>
+      <strong>{value}</strong>
 
-      <small>
-        {note}
-      </small>
-
+      <small>{sub}</small>
     </div>
   );
 }
-
-
-/* ============================================================
-   PANEL HEADER
-============================================================ */
-
-function PanelHeader({
-  title,
-  subtitle,
-  icon: Icon,
-  action,
-}) {
-  return (
-    <div className="panel-header">
-
-      <div className="panel-title">
-
-        <div className="panel-icon">
-          <Icon size={17} />
-        </div>
-
-        <div>
-          <h2>{title}</h2>
-          <span>{subtitle}</span>
-        </div>
-
-      </div>
-
-      {action}
-
-    </div>
-  );
-}
-
-
-/* ============================================================
-   CITY MAP
-============================================================ */
-
-function CityMap({
-  districts,
-}) {
-  const positions = [
-    [20, 24],
-    [51, 19],
-    [79, 27],
-    [25, 67],
-    [55, 61],
-    [79, 72],
-  ];
-
-  return (
-    <div className="city-map">
-
-      <div className="map-grid" />
-
-      <div className="map-road road-1" />
-      <div className="map-road road-2" />
-      <div className="map-road road-3" />
-      <div className="map-road road-4" />
-
-      <div className="map-center">
-
-        <div className="map-center-ring">
-          <Globe2 size={24} />
-        </div>
-
-        <span>
-          FENIX
-        </span>
-
-      </div>
-
-      {districts
-        .slice(0, 6)
-        .map(
-          (
-            district,
-            index
-          ) => {
-            const position =
-              positions[index] ||
-              [50, 50];
-
-            return (
-              <div
-                key={district.id}
-                className="district-marker"
-                style={{
-                  left:
-                    `${position[0]}%`,
-                  top:
-                    `${position[1]}%`,
-                }}
-              >
-
-                <div className="marker-dot">
-                  <span />
-                </div>
-
-                <div className="marker-label">
-                  <strong>
-                    {district.name}
-                  </strong>
-
-                  <span>
-                    {number(
-                      district.population
-                    )} жителей
-                  </span>
-                </div>
-
-              </div>
-            );
-          }
-        )}
-
-    </div>
-  );
-}
-
-
-/* ============================================================
-   COMPANY ROW
-============================================================ */
-
-function CompanyRow({
-  company,
-}) {
-  const growth =
-    Number(
-      company.growth || 0
-    );
-
-  return (
-    <div className="company-row">
-
-      <div className="company-logo">
-        {(
-          company.name ||
-          "F"
-        )
-          .slice(0, 1)
-          .toUpperCase()}
-      </div>
-
-      <div className="company-main">
-
-        <strong>
-          {company.name}
-        </strong>
-
-        <span>
-          {company.sector ||
-            company.type ||
-            "Компания"}
-        </span>
-
-      </div>
-
-      <div className="company-price">
-
-        <strong>
-          ${money(
-            company.price ||
-            company.income
-          )}
-        </strong>
-
-        <span
-          className={
-            growth >= 0
-              ? "positive"
-              : "negative"
-          }
-        >
-          {growth >= 0
-            ? "+"
-            : ""}
-          {growth.toFixed(1)}%
-        </span>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-/* ============================================================
-   LEADERBOARD
-============================================================ */
-
-function Leaderboard({
-  data,
-  currentId,
-}) {
-  if (!data.length) {
-    return (
-      <Empty
-        text="Рейтинг пока пуст."
-      />
-    );
-  }
-
-  return (
-    <div className="leaderboard">
-
-      {data.map(
-        (item, index) => (
-          <div
-            className={`leader-row ${
-              String(item.id) ===
-              String(currentId)
-                ? "current"
-                : ""
-            }`}
-            key={
-              item.id ||
-              index
-            }
-          >
-
-            <div className="leader-place">
-              {index === 0 ? (
-                <Crown size={17} />
-              ) : (
-                `#${index + 1}`
-              )}
-            </div>
-
-            <div className="leader-avatar">
-              {(
-                item.nickname ||
-                "F"
-              )
-                .slice(0, 1)
-                .toUpperCase()}
-            </div>
-
-            <div className="leader-name">
-
-              <strong>
-                {item.nickname}
-              </strong>
-
-              <span>
-                LVL {item.level}
-              </span>
-
-            </div>
-
-            <div className="leader-score">
-
-              {number(
-                item.reputation ??
-                item.rating ??
-                0
-              )}
-
-              <small>
-                REP
-              </small>
-
-            </div>
-
-          </div>
-        )
-      )}
-
-    </div>
-  );
-}
-
-
-/* ============================================================
-   TASK
-============================================================ */
-
-function TaskCard({
-  icon: Icon,
-  title,
-  description,
-  button,
-  onClick,
-}) {
-  return (
-    <div className="task-card">
-
-      <div className="task-icon">
-        <Icon size={21} />
-      </div>
-
-      <h3>
-        {title}
-      </h3>
-
-      <p>
-        {description}
-      </p>
-
-      <button
-        onClick={onClick}
-      >
-        {button}
-        <ArrowUpRight
-          size={14}
-        />
-      </button>
-
-    </div>
-  );
-}
-
 
 /* ============================================================
    CITY
@@ -2197,128 +1338,142 @@ function TaskCard({
 
 function City({
   districts,
-  player,
+  events,
 }) {
   return (
-    <>
+    <div>
       <PageHeader
-        eyebrow="FENIX CITY / MAP"
-        title="ГОРОД"
-        description="Исследуй районы, следи за активностью и выбирай место для развития."
+        eyebrow="CITY / MAP"
+        title="Город"
+        description="Исследуй районы FENIX CITY."
       />
 
-      <section className="panel large-map-panel">
+      <div className="city-layout">
+        <section className="map-card">
+          <div className="map-head">
+            <div>
+              <span>FENIX CITY</span>
+              <strong>
+                ГОРОДСКАЯ КАРТА
+              </strong>
+            </div>
 
-        <div className="large-map-wrap">
-          <CityMap
-            districts={
-              districts
-            }
-          />
-        </div>
+            <span className="map-live">
+              ● LIVE
+            </span>
+          </div>
 
-      </section>
+          <div className="fake-map">
+            <div className="map-road road-a" />
+            <div className="map-road road-b" />
+            <div className="map-road road-c" />
 
+            <div className="map-block block-a">
+              ЦЕНТР
+            </div>
 
-      <section className="district-grid">
+            <div className="map-block block-b">
+              BUSINESS
+            </div>
 
-        {districts.map(
-          (district) => (
-            <div
-              className="district-card"
-              key={
-                district.id
-              }
-            >
+            <div className="map-block block-c">
+              INDUSTRIAL
+            </div>
 
-              <div className="district-card-top">
+            <div className="map-block block-d">
+              SUBURB
+            </div>
 
-                <div className="district-card-icon">
-                  <Map size={19} />
+            <div className="map-pin">
+              F
+            </div>
+          </div>
+        </section>
+
+        <section className="district-cards">
+          {districts.map(
+            (district, index) => (
+              <div
+                className="district-card"
+                key={
+                  district.id ||
+                  index
+                }
+              >
+                <div className="district-card-top">
+                  <span>
+                    0{index + 1}
+                  </span>
+                  <b>
+                    LVL{" "}
+                    {district.level ||
+                      1}
+                  </b>
                 </div>
 
-                <span className="activity-dot">
-                  LIVE
-                </span>
+                <h3>
+                  {district.name}
+                </h3>
 
-              </div>
+                <p>
+                  {district.description}
+                </p>
 
-              <h3>
-                {district.name}
-              </h3>
-
-              <p>
-                {district.description}
-              </p>
-
-              <div className="district-stats">
-
-                <div>
+                <div className="district-card-bottom">
                   <span>
                     НАСЕЛЕНИЕ
                   </span>
-
                   <strong>
-                    {number(
+                    {num(
                       district.population
                     )}
                   </strong>
                 </div>
+              </div>
+            )
+          )}
+        </section>
+      </div>
 
-                <div>
-                  <span>
-                    УРОВЕНЬ
-                  </span>
-
-                  <strong>
-                    {district.level ||
-                      1}
-                  </strong>
+      <Panel title="Активные события">
+        <div className="event-list">
+          {events.map(
+            (event, index) => (
+              <div
+                className="event"
+                key={
+                  event.id ||
+                  index
+                }
+              >
+                <div className="event-icon">
+                  {index % 2
+                    ? "↗"
+                    : "!"}
                 </div>
 
+                <div>
+                  <strong>
+                    {event.title}
+                  </strong>
+                  <span>
+                    {event.description}
+                  </span>
+                </div>
+
+                <b>
+                  {event.active
+                    ? "ACTIVE"
+                    : "ENDED"}
+                </b>
               </div>
-
-            </div>
-          )
-        )}
-
-      </section>
-
-
-      <section className="panel city-info-panel">
-
-        <div className="city-info-icon">
-          <Globe2 size={25} />
+            )
+          )}
         </div>
-
-        <div>
-          <h2>
-            Город развивается
-            вместе с тобой
-          </h2>
-
-          <p>
-            Развивай персонажа,
-            покупай активы и
-            повышай свой статус.
-          </p>
-        </div>
-
-        <div className="city-info-stat">
-          <span>
-            ТВОЙ УРОВЕНЬ
-          </span>
-
-          <strong>
-            {player.level}
-          </strong>
-        </div>
-
-      </section>
-    </>
+      </Panel>
+    </div>
   );
 }
-
 
 /* ============================================================
    WORK
@@ -2326,616 +1481,456 @@ function City({
 
 function Work({
   player,
-  action,
+  progress,
+  work,
   rest,
-  levelProgress,
 }) {
-  const energy =
-    Number(
-      player.energy || 0
-    );
-
   return (
-    <>
+    <div>
       <PageHeader
-        eyebrow="FENIX CITY / CAREER"
-        title="РАБОТА"
-        description="Зарабатывай стартовый капитал и повышай репутацию."
+        eyebrow="CAREER / WORK"
+        title="Работа"
+        description="Зарабатывай деньги и прокачивай персонажа."
       />
 
-      <div className="work-layout">
+      <div className="work-hero">
+        <div>
+          <span className="eyebrow">
+            ТЕКУЩАЯ РАБОТА
+          </span>
 
-        <section className="panel work-main">
+          <h2>
+            {player.job ||
+              "Безработный"}
+          </h2>
 
-          <div className="work-main-top">
+          <p>
+            Выполняй рабочие действия,
+            чтобы получать деньги,
+            рейтинг и XP.
+          </p>
+        </div>
 
-            <div>
-              <div className="eyebrow">
-                ДОСТУПНАЯ РАБОТА
-              </div>
+        <div className="work-energy">
+          <span>ЭНЕРГИЯ</span>
+          <strong>
+            {player.energy}/100
+          </strong>
 
-              <h2>
-                ГОРОДСКОЙ КУРЬЕР
-              </h2>
+          <div className="progress">
+            <span
+              style={{
+                width: `${Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    Number(
+                      player.energy ||
+                        0
+                    )
+                  )
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      </div>
 
-              <p>
-                Выполни городское
-                задание, получи деньги
-                и репутацию.
-              </p>
-            </div>
-
-            <div className="job-level">
-              <Gauge size={18} />
-              EASY
-            </div>
-
+      <div className="work-grid">
+        <div className="action-card primary-action">
+          <div className="big-icon">
+            ⚡
           </div>
 
-          <div className="job-reward-grid">
-
-            <div>
-              <span>
-                НАГРАДА
-              </span>
-
-              <strong>
-                $1000
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                РЕПУТАЦИЯ
-              </span>
-
-              <strong>
-                +100
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                ЭНЕРГИЯ
-              </span>
-
-              <strong>
-                -10
-              </strong>
-            </div>
-
-          </div>
-
-          <button
-            className="primary-button big-action"
-            onClick={action}
-            disabled={
-              energy < 10
-            }
-          >
-            <Zap size={19} />
-
-            {energy >= 10
-              ? "ВЫПОЛНИТЬ РАБОТУ"
-              : "НЕТ ЭНЕРГИИ"}
-          </button>
-
-        </section>
-
-
-        <section className="panel energy-panel">
-
-          <div className="energy-ring">
-
-            <div>
-              <strong>
-                {energy}
-              </strong>
-
-              <span>
-                /100
-              </span>
-            </div>
-
-          </div>
+          <span>РАБОЧАЯ СМЕНА</span>
 
           <h3>
-            ЭНЕРГИЯ
+            Выполнить работу
           </h3>
 
           <p>
-            Энергия расходуется
-            при выполнении работы.
+            Получи фиксированную
+            выплату и опыт.
           </p>
 
+          <div className="reward">
+            <strong>
+              +$1 000
+            </strong>
+            <span>
+              −10 энергии
+            </span>
+          </div>
+
           <button
-            className="secondary-button full"
-            onClick={rest}
+            className="button primary wide"
+            onClick={work}
+            disabled={
+              Number(
+                player.energy || 0
+              ) < 10
+            }
           >
-            <Moon size={17} />
-            ВОССТАНОВИТЬ
+            НАЧАТЬ СМЕНУ
           </button>
-
-        </section>
-
-      </div>
-
-
-      <section className="panel career-panel">
-
-        <PanelHeader
-          title="Прогресс персонажа"
-          subtitle={`Уровень ${player.level}`}
-          icon={Star}
-        />
-
-        <div className="level-progress">
-
-          <div className="level-head">
-            <span>
-              LVL {player.level}
-            </span>
-
-            <span>
-              {number(
-                player.reputation ??
-                player.rating ??
-                0
-              )} REP
-            </span>
-
-            <span>
-              LVL{" "}
-              {Number(
-                player.level
-              ) + 1}
-            </span>
-          </div>
-
-          <div className="progress-track">
-
-            <div
-              style={{
-                width:
-                  `${levelProgress}%`,
-              }}
-            />
-
-          </div>
-
         </div>
 
-      </section>
-    </>
+        <div className="action-card">
+          <div className="big-icon">
+            +
+          </div>
+
+          <span>
+            ВОССТАНОВЛЕНИЕ
+          </span>
+
+          <h3>
+            Отдохнуть
+          </h3>
+
+          <p>
+            Полностью восстанови
+            энергию и здоровье.
+          </p>
+
+          <div className="reward">
+            <strong>
+              100 / 100
+            </strong>
+            <span>
+              энергия
+            </span>
+          </div>
+
+          <button
+            className="button secondary wide"
+            onClick={rest}
+          >
+            ВОССТАНОВИТЬСЯ
+          </button>
+        </div>
+      </div>
+
+      <Panel title="Прогресс уровня">
+        <div className="level-panel">
+          <div>
+            <strong>
+              УРОВЕНЬ{" "}
+              {player.level || 1}
+            </strong>
+            <span>
+              {num(
+                player.xp || 0
+              )} XP
+            </span>
+          </div>
+
+          <div className="progress large">
+            <span
+              style={{
+                width: `${progress}%`,
+              }}
+            />
+          </div>
+        </div>
+      </Panel>
+    </div>
   );
 }
-
 
 /* ============================================================
    BUSINESS
 ============================================================ */
 
 function Business({
+  player,
   properties,
   companies,
-  player,
   buyProperty,
 }) {
-  const cash =
-    player.cash ??
-    player.money ??
-    0;
-
   return (
-    <>
+    <div>
       <PageHeader
-        eyebrow="FENIX CITY / ASSETS"
-        title="БИЗНЕС"
-        description="Недвижимость и компании — основа твоего капитала."
+        eyebrow="CAPITAL / BUSINESS"
+        title="Бизнес"
+        description="Покупай активы и создавай источник дохода."
       />
 
-      <section className="section-block">
-
-        <div className="section-title-row">
-
-          <div>
-            <h2>
-              Недвижимость
-            </h2>
-
-            <span>
-              {properties.length}
-              {" "}объектов
-            </span>
-          </div>
-
-          <div className="section-balance">
-            <Wallet size={16} />
-            ${money(cash)}
-          </div>
-
-        </div>
-
-        <div className="shop-grid">
-
-          {properties.map(
-            (property) => {
-
-              const owned =
-                Array.isArray(
-                  player.properties
-                )
-                  ? player.properties.includes(
-                      property.id
-                    )
-                  : property.owned_by ===
-                    player.id;
-
-              return (
-                <AssetCard
-                  key={
-                    property.id
-                  }
-                  icon={Home}
-                  name={
-                    property.name
-                  }
-                  subtitle={
-                    property.district
-                  }
-                  price={
-                    property.price
-                  }
-                  income={
-                    property.income
-                  }
-                  owned={owned}
-                  canBuy={
-                    Number(cash) >=
-                    Number(
-                      property.price
-                    )
-                  }
-                  onBuy={() =>
-                    buyProperty(
-                      property.id
-                    )
-                  }
-                />
-              );
-            }
-          )}
-
-        </div>
-
-      </section>
-
-
-      <section className="section-block">
-
-        <div className="section-title-row">
-
-          <div>
-            <h2>
-              Компании города
-            </h2>
-
-            <span>
-              Следи за их развитием
-            </span>
-          </div>
-
-        </div>
-
-        <div className="company-grid">
-
-          {companies.map(
-            (company) => (
-              <CompanyCard
-                key={
-                  company.id
-                }
-                company={
-                  company
-                }
-              />
-            )
-          )}
-
-        </div>
-
-      </section>
-    </>
-  );
-}
-
-
-/* ============================================================
-   ASSET CARD
-============================================================ */
-
-function AssetCard({
-  icon: Icon,
-  name,
-  subtitle,
-  price,
-  income,
-  owned,
-  canBuy,
-  onBuy,
-}) {
-  return (
-    <div
-      className={`asset-card ${
-        owned
-          ? "owned"
-          : ""
-      }`}
-    >
-
-      <div className="asset-image">
-
-        <div className="asset-image-grid" />
-
-        <Icon size={38} />
-
-        {owned && (
-          <span className="owned-badge">
-            ВЛАДЕЕТЕ
-          </span>
-        )}
-
-      </div>
-
-
-      <div className="asset-content">
-
-        <div className="asset-category">
-          НЕДВИЖИМОСТЬ
-        </div>
-
-        <h3>
-          {name}
-        </h3>
-
-        <span className="asset-location">
-          {subtitle}
-        </span>
-
-        <div className="asset-info">
-
-          <div>
-            <span>
-              ЦЕНА
-            </span>
-
-            <strong>
-              ${money(price)}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              ДОХОД
-            </span>
-
-            <strong className="positive">
-              +${money(
-                income
-              )}
-            </strong>
-          </div>
-
-        </div>
-
-
-        {owned ? (
-          <button
-            className="owned-button"
-            disabled
-          >
-            <Shield size={15} />
-            ТВОЙ АКТИВ
-          </button>
-        ) : (
-          <button
-            className="primary-button asset-buy"
-            onClick={onBuy}
-            disabled={!canBuy}
-          >
-            {canBuy
-              ? "КУПИТЬ"
-              : "НЕДОСТАТОЧНО ДЕНЕГ"}
-
-            {canBuy && (
-              <ArrowUpRight
-                size={15}
-              />
-            )}
-          </button>
-        )}
-
-      </div>
-
-    </div>
-  );
-}
-
-
-/* ============================================================
-   COMPANY CARD
-============================================================ */
-
-function CompanyCard({
-  company,
-}) {
-  const growth =
-    Number(
-      company.growth || 0
-    );
-
-  return (
-    <div className="company-card">
-
-      <div className="company-card-head">
-
-        <div className="big-company-logo">
-          {(
-            company.name ||
-            "F"
-          )
-            .slice(0, 1)
-            .toUpperCase()}
+      <div className="capital-strip">
+        <div>
+          <span>КАПИТАЛ</span>
+          <strong>
+            ${money(player.money)}
+          </strong>
         </div>
 
         <div>
-          <h3>
-            {company.name}
-          </h3>
-
-          <span>
-            {company.sector ||
-              company.type}
-          </span>
+          <span>АКТИВОВ</span>
+          <strong>
+            {(player.properties ||
+              []).length}
+          </strong>
         </div>
 
+        <div>
+          <span>БИЗНЕСОВ</span>
+          <strong>
+            {(player.businesses ||
+              []).length}
+          </strong>
+        </div>
       </div>
 
-      <div className="company-card-price">
+      <Panel title="Недвижимость">
+        <div className="product-grid">
+          {properties.map(
+            (property) => {
+              const owned =
+                player.properties?.includes(
+                  property.id
+                );
 
-        <strong>
-          ${money(
-            company.price ||
-            company.income
+              return (
+                <div
+                  className="product-card"
+                  key={property.id}
+                >
+                  <div className="product-image property-image">
+                    <span>
+                      {property.type ||
+                        "PROPERTY"}
+                    </span>
+                    <b>
+                      {property.level
+                        ? `LVL ${property.level}`
+                        : "CITY"}
+                    </b>
+                  </div>
+
+                  <div className="product-body">
+                    <span className="product-type">
+                      {property.district}
+                    </span>
+
+                    <h3>
+                      {property.name}
+                    </h3>
+
+                    <div className="product-row">
+                      <span>
+                        Доход
+                      </span>
+                      <strong>
+                        +$
+                        {money(
+                          property.income
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="product-row">
+                      <span>
+                        Цена
+                      </span>
+                      <strong>
+                        $
+                        {money(
+                          property.price
+                        )}
+                      </strong>
+                    </div>
+
+                    <button
+                      className={`button ${
+                        owned
+                          ? "secondary"
+                          : "primary"
+                      } wide`}
+                      disabled={owned}
+                      onClick={() =>
+                        buyProperty(
+                          property.id
+                        )
+                      }
+                    >
+                      {owned
+                        ? "КУПЛЕНО"
+                        : "КУПИТЬ"}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
           )}
-        </strong>
+        </div>
+      </Panel>
 
-        <span
-          className={
-            growth >= 0
-              ? "positive"
-              : "negative"
-          }
-        >
-          {growth >= 0
-            ? "+"
-            : ""}
-          {growth.toFixed(2)}%
-        </span>
+      <Panel title="Компании города">
+        <div className="company-list">
+          {companies.map(
+            (company) => (
+              <div
+                className="company"
+                key={company.id}
+              >
+                <div className="company-icon">
+                  {company.icon ===
+                  "car"
+                    ? "▰"
+                    : "▣"}
+                </div>
 
-      </div>
+                <div>
+                  <strong>
+                    {company.name}
+                  </strong>
 
+                  <span>
+                    {company.type ||
+                      company.sector ||
+                      "Компания"}{" "}
+                    ·{" "}
+                    {company.district}
+                  </span>
+                </div>
+
+                <div className="company-money">
+                  <strong>
+                    +$
+                    {money(
+                      company.income
+                    )}
+                  </strong>
+                  <span>
+                    доход
+                  </span>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      </Panel>
     </div>
   );
 }
-
 
 /* ============================================================
    GARAGE
 ============================================================ */
 
 function Garage({
-  vehicles,
   player,
+  vehicles,
   buyVehicle,
 }) {
   return (
-    <>
+    <div>
       <PageHeader
-        eyebrow="FENIX CITY / GARAGE"
-        title="ГАРАЖ"
-        description="Собирай собственную коллекцию транспорта."
+        eyebrow="GARAGE / VEHICLES"
+        title="Гараж"
+        description="Выбирай транспорт и собирай собственную коллекцию."
       />
 
-      <div className="garage-banner">
-
+      <div className="garage-header">
         <div>
-
-          <div className="eyebrow">
-            FENIX MOTOR DIVISION
-          </div>
-
-          <h2>
-            ТРАНСПОРТ —
-            <br />
-            ЭТО СТИЛЬ.
-          </h2>
-
-          <p>
-            Собирай автомобили
-            и развивай свою коллекцию.
-          </p>
-
+          <span>ТРАНСПОРТ</span>
+          <strong>
+            {(player.vehicles ||
+              []).length}
+          </strong>
         </div>
 
-        <Car
-          className="garage-banner-icon"
-          size={125}
-        />
-
+        <div>
+          <span>БАЛАНС</span>
+          <strong>
+            ${money(player.money)}
+          </strong>
+        </div>
       </div>
 
-
-      <div className="shop-grid vehicles-grid">
-
+      <div className="product-grid">
         {vehicles.map(
           (vehicle) => {
-
             const owned =
-              Array.isArray(
-                player.vehicles
-              )
-                ? player.vehicles.includes(
-                    vehicle.id
-                  )
-                : vehicle.owned_by ===
-                  player.id;
-
-            const cash =
-              player.cash ??
-              player.money ??
-              0;
+              player.vehicles?.includes(
+                vehicle.id
+              );
 
             return (
-              <AssetCard
-                key={
-                  vehicle.id
-                }
-                icon={Car}
-                name={
-                  vehicle.name
-                }
-                subtitle={
-                  vehicle.type ||
-                  vehicle.category ||
-                  "Автомобиль"
-                }
-                price={
-                  vehicle.price
-                }
-                income={0}
-                owned={owned}
-                canBuy={
-                  Number(cash) >=
-                  Number(
-                    vehicle.price
-                  )
-                }
-                onBuy={() =>
-                  buyVehicle(
-                    vehicle.id
-                  )
-                }
-              />
+              <div
+                className="product-card"
+                key={vehicle.id}
+              >
+                <div className="product-image car-image">
+                  <div className="car-shape">
+                    {ICONS.car}
+                  </div>
+
+                  <b>
+                    CLASS{" "}
+                    {vehicle.class ||
+                      "C"}
+                  </b>
+                </div>
+
+                <div className="product-body">
+                  <span className="product-type">
+                    {vehicle.type ||
+                      "Автомобиль"}
+                  </span>
+
+                  <h3>
+                    {vehicle.name}
+                  </h3>
+
+                  <div className="product-row">
+                    <span>
+                      Скорость
+                    </span>
+                    <strong>
+                      {vehicle.speed ||
+                        0}
+                    </strong>
+                  </div>
+
+                  <div className="product-row">
+                    <span>
+                      Цена
+                    </span>
+                    <strong>
+                      $
+                      {money(
+                        vehicle.price
+                      )}
+                    </strong>
+                  </div>
+
+                  <button
+                    className={`button ${
+                      owned
+                        ? "secondary"
+                        : "primary"
+                    } wide`}
+                    disabled={owned}
+                    onClick={() =>
+                      buyVehicle(
+                        vehicle.id
+                      )
+                    }
+                  >
+                    {owned
+                      ? "В ГАРАЖЕ"
+                      : "КУПИТЬ"}
+                  </button>
+                </div>
+              </div>
             );
           }
         )}
-
       </div>
-    </>
+    </div>
   );
 }
-
 
 /* ============================================================
    MARKET
@@ -2943,297 +1938,175 @@ function Garage({
 
 function Market({
   companies,
-  marketTick,
+  updateMarket,
 }) {
   return (
-    <>
+    <div>
       <PageHeader
-        eyebrow="FENIX CITY / EXCHANGE"
-        title="РЫНОК"
-        description="Городская экономика."
-        action={
-          <button
-            className="secondary-button"
-            onClick={
-              marketTick
-            }
-          >
-            <RefreshCw
-              size={16}
-            />
-            ОБНОВИТЬ РЫНОК
-          </button>
-        }
+        eyebrow="MARKET / LIVE"
+        title="Рынок"
+        description="Следи за компаниями и изменением городской экономики."
       />
 
-      <div className="market-overview">
+      <div className="market-hero">
+        <div>
+          <span className="market-live">
+            ● LIVE MARKET
+          </span>
 
-        <div className="market-overview-card">
+          <h2>
+            Экономика
+            <br />
+            города
+          </h2>
 
-          <div className="market-overview-icon">
-            <Activity size={20} />
+          <p>
+            Рыночные показатели
+            обновляются в реальном
+            времени.
+          </p>
+        </div>
+
+        <div className="market-chart">
+          <div className="chart-line">
+            ╱╲__╱╲___╱╲
+            ╱╲
           </div>
 
           <span>
-            СТАТУС РЫНКА
+            +12.4%
           </span>
-
-          <strong>
-            ОТКРЫТ
-          </strong>
-
-          <small>
-            Система работает
-          </small>
-
         </div>
-
-
-        <div className="market-overview-card">
-
-          <div className="market-overview-icon">
-            <BarChart3
-              size={20}
-            />
-          </div>
-
-          <span>
-            КОМПАНИЙ
-          </span>
-
-          <strong>
-            {companies.length}
-          </strong>
-
-          <small>
-            Активы города
-          </small>
-
-        </div>
-
-
-        <div className="market-overview-card">
-
-          <div className="market-overview-icon">
-            <TrendingUp
-              size={20}
-            />
-          </div>
-
-          <span>
-            ТРЕНД
-          </span>
-
-          <strong>
-            LIVE
-          </strong>
-
-          <small>
-            Цены изменяются
-          </small>
-
-        </div>
-
       </div>
 
-
-      <section className="panel market-table-panel">
-
-        <div className="market-table-head">
-          <span>
-            КОМПАНИЯ
-          </span>
-
-          <span>
-            СЕКТОР
-          </span>
-
-          <span>
-            ЦЕНА
-          </span>
-
-          <span>
-            ИЗМЕНЕНИЕ
-          </span>
-        </div>
-
-
-        {companies.map(
-          (company) => {
-
-            const growth =
-              Number(
-                company.growth ||
-                0
-              );
-
-            return (
+      <Panel
+        title="Компании"
+        action="ОБНОВИТЬ"
+        onAction={updateMarket}
+      >
+        <div className="market-list">
+          {companies.map(
+            (company) => (
               <div
-                className="market-row"
-                key={
-                  company.id
-                }
+                className="market-item"
+                key={company.id}
               >
+                <div className="market-company-icon">
+                  {company.icon ===
+                  "car"
+                    ? "▰"
+                    : "▣"}
+                </div>
 
                 <div className="market-company">
-
-                  <div className="company-logo">
-                    {(
-                      company.name ||
-                      "F"
-                    )
-                      .slice(
-                        0,
-                        1
-                      )
-                      .toUpperCase()}
-                  </div>
-
                   <strong>
                     {company.name}
                   </strong>
-
+                  <span>
+                    {company.type ||
+                      "Компания"}
+                  </span>
                 </div>
 
-                <span>
-                  {company.sector ||
-                    company.type}
-                </span>
+                <div className="market-price">
+                  <strong>
+                    $
+                    {money(
+                      company.income
+                    )}
+                  </strong>
 
-                <strong>
-                  $
-                  {money(
-                    company.price ||
-                    company.income
-                  )}
-                </strong>
-
-                <span
-                  className={
-                    growth >= 0
-                      ? "positive"
-                      : "negative"
-                  }
-                >
-                  {growth >= 0
-                    ? "+"
-                    : ""}
-                  {growth.toFixed(
-                    2
-                  )}%
-                </span>
-
+                  <span className="up">
+                    +{(
+                      2.1 +
+                      company.id *
+                        1.4
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
               </div>
-            );
-          }
-        )}
-
-      </section>
-    </>
+            )
+          )}
+        </div>
+      </Panel>
+    </div>
   );
 }
-
 
 /* ============================================================
    RANKING
 ============================================================ */
 
 function Ranking({
-  leaderboard,
   player,
+  leaderboard,
 }) {
-  const currentIndex =
-    leaderboard.findIndex(
-      (x) =>
-        String(x.id) ===
-        String(player.id)
-    );
-
   return (
-    <>
+    <div>
       <PageHeader
-        eyebrow="FENIX CITY / RANKING"
-        title="РЕЙТИНГ"
-        description="Соревнуйся с другими жителями города."
+        eyebrow="CITY / LEADERBOARD"
+        title="Рейтинг"
+        description="Сравнивай достижения жителей FENIX CITY."
       />
 
-      <div className="ranking-hero">
-
-        <div className="ranking-crown">
-          <Trophy size={36} />
-        </div>
-
+      <div className="ranking-top">
         <div>
-          <span>
-            УРОВЕНЬ
-          </span>
-
+          <span>ТВОЙ РЕЙТИНГ</span>
           <strong>
-            {player.level}
-          </strong>
-        </div>
-
-        <div>
-          <span>
-            РЕПУТАЦИЯ
-          </span>
-
-          <strong>
-            {number(
-              player.reputation ??
-              player.rating ??
-              0
+            {num(
+              player.rating
             )}
           </strong>
         </div>
 
         <div>
-          <span>
-            МЕСТО
-          </span>
-
+          <span>УРОВЕНЬ</span>
           <strong>
-            #
-            {Math.max(
-              1,
-              currentIndex + 1
-            )}
+            {player.level || 1}
           </strong>
         </div>
 
+        <div>
+          <span>ДЕНЬГИ</span>
+          <strong>
+            ${money(player.money)}
+          </strong>
+        </div>
       </div>
 
+      <Panel title="ТОП ЖИТЕЛЕЙ">
+        <Leaderboard
+          players={leaderboard}
+          player={player}
+        />
+      </Panel>
+    </div>
+  );
+}
 
-      <section className="panel full-ranking">
+function Leaderboard({
+  players,
+  player,
+}) {
+  if (!players.length) {
+    return (
+      <Empty text="Рейтинг пока пуст." />
+    );
+  }
 
-        <div className="full-ranking-head">
-          <span>
-            МЕСТО
-          </span>
+  return (
+    <div className="leaderboard">
+      {players.map(
+        (item, index) => {
+          const current =
+            String(item.id) ===
+            String(player?.id);
 
-          <span>
-            ИГРОК
-          </span>
-
-          <span>
-            УРОВЕНЬ
-          </span>
-
-          <span>
-            РЕПУТАЦИЯ
-          </span>
-        </div>
-
-
-        {leaderboard.map(
-          (
-            item,
-            index
-          ) => (
+          return (
             <div
-              className={`full-ranking-row ${
-                String(item.id) ===
-                String(player.id)
+              className={`rank-row ${
+                current
                   ? "current"
                   : ""
               }`}
@@ -3242,52 +2115,55 @@ function Ranking({
                 index
               }
             >
-
-              <strong>
-                #{index + 1}
-              </strong>
-
-              <div className="ranking-player">
-
-                <div className="leader-avatar">
-                  {(
-                    item.nickname ||
-                    "F"
-                  )
-                    .slice(
-                      0,
-                      1
-                    )
-                    .toUpperCase()}
-                </div>
-
-                <span>
-                  {item.nickname}
-                </span>
-
+              <div className="rank-number">
+                {item.rank ||
+                  index + 1}
               </div>
 
-              <span>
-                LVL {item.level}
-              </span>
+              <div className="rank-avatar">
+                {(
+                  item.nickname ||
+                  "F"
+                )
+                  .slice(0, 1)
+                  .toUpperCase()}
+              </div>
 
-              <strong>
-                {number(
-                  item.reputation ??
-                  item.rating ??
-                  0
+              <div className="rank-name">
+                <strong>
+                  {item.nickname}
+                </strong>
+                <span>
+                  LVL{" "}
+                  {item.level ||
+                    1}
+                </span>
+              </div>
+
+              <div className="rank-rating">
+                <strong>
+                  {num(
+                    item.rating
+                  )}
+                </strong>
+                <span>
+                  рейтинг
+                </span>
+              </div>
+
+              <div className="rank-money">
+                $
+                {money(
+                  item.money
                 )}
-              </strong>
-
+              </div>
             </div>
-          )
-        )}
-
-      </section>
-    </>
+          );
+        }
+      )}
+    </div>
   );
 }
-
 
 /* ============================================================
    PROFILE
@@ -3295,255 +2171,227 @@ function Ranking({
 
 function Profile({
   player,
-  levelProgress,
+  progress,
   logout,
 }) {
-  const cash =
-    player.cash ??
-    player.money ??
-    0;
-
-  const reputation =
-    player.reputation ??
-    player.rating ??
-    0;
-
-  const properties =
-    Array.isArray(
-      player.properties
-    )
-      ? player.properties.length
-      : Number(
-          player.properties ||
-          0
-        );
-
-  const vehicles =
-    Array.isArray(
-      player.vehicles
-    )
-      ? player.vehicles.length
-      : Number(
-          player.vehicles ||
-          0
-        );
-
   return (
-    <>
+    <div>
       <PageHeader
-        eyebrow="FENIX CITY / ACCOUNT"
-        title="ПРОФИЛЬ"
-        description="Твоя статистика и прогресс в городе."
+        eyebrow="ACCOUNT / PROFILE"
+        title="Профиль"
+        description="Информация о твоём жителе."
       />
 
-      <div className="profile-layout">
-
-        <section className="panel profile-card-main">
-
-          <div className="profile-cover">
-            <div className="profile-cover-grid" />
+      <div className="profile-grid">
+        <div className="profile-card profile-main">
+          <div className="profile-avatar">
+            {(
+              player.nickname ||
+              "F"
+            )
+              .slice(0, 1)
+              .toUpperCase()}
           </div>
 
-          <div className="profile-main">
+          <span className="profile-status">
+            ● ONLINE
+          </span>
 
-            <div className="profile-avatar-large">
-              {(
-                player.nickname ||
-                "F"
-              )
-                .slice(
-                  0,
-                  1
-                )
-                .toUpperCase()}
-            </div>
+          <h2>
+            {player.nickname}
+          </h2>
 
-            <div className="profile-name">
+          <p>
+            {player.status ||
+              "Гражданин"}{" "}
+            ·{" "}
+            {player.district ||
+              "Пригород"}
+          </p>
 
-              <div className="profile-name-line">
-
-                <h2>
-                  {player.nickname}
-                </h2>
-
-                <span>
-                  LVL {player.level}
-                </span>
-
-              </div>
-
-              <p>
-                ID игрока #{player.id}
-              </p>
-
-            </div>
-
-          </div>
-
-
-          <div className="profile-progress">
-
+          <div className="profile-level">
             <div>
-
               <span>
-                ПРОГРЕСС УРОВНЯ
+                LEVEL
               </span>
-
               <strong>
-                {number(
-                  reputation
-                )} REP
+                {player.level ||
+                  1}
               </strong>
-
             </div>
 
-            <div className="progress-track">
-
-              <div
+            <div className="progress">
+              <span
                 style={{
-                  width:
-                    `${levelProgress}%`,
+                  width: `${progress}%`,
                 }}
               />
-
             </div>
-
           </div>
 
-        </section>
+          <button
+            className="button secondary wide"
+            onClick={logout}
+          >
+            ВЫЙТИ ИЗ АККАУНТА
+          </button>
+        </div>
 
+        <div className="profile-details">
+          <ProfileRow
+            title="ID игрока"
+            value={player.id}
+          />
 
-        <section className="panel profile-stats">
+          <ProfileRow
+            title="Работа"
+            value={
+              player.job ||
+              "Безработный"
+            }
+          />
 
-          <ProfileStat
-            icon={Wallet}
-            label="Капитал"
+          <ProfileRow
+            title="Район"
+            value={
+              player.district ||
+              "Пригород"
+            }
+          />
+
+          <ProfileRow
+            title="Баланс"
             value={`$${money(
-              cash
+              player.money
             )}`}
           />
 
-          <ProfileStat
-            icon={Star}
-            label="Репутация"
-            value={number(
-              reputation
+          <ProfileRow
+            title="Рейтинг"
+            value={num(
+              player.rating
             )}
           />
 
-          <ProfileStat
-            icon={Building2}
-            label="Недвижимость"
-            value={number(
-              properties
-            )}
+          <ProfileRow
+            title="Автомобилей"
+            value={
+              player.vehicles
+                ?.length || 0
+            }
           />
 
-          <ProfileStat
-            icon={Car}
-            label="Транспорт"
-            value={number(
-              vehicles
-            )}
+          <ProfileRow
+            title="Недвижимость"
+            value={
+              player.properties
+                ?.length || 0
+            }
           />
-
-          <ProfileStat
-            icon={Activity}
-            label="Работ выполнено"
-            value={number(
-              player.jobs_done ||
-              0
-            )}
-          />
-
-        </section>
-
-      </div>
-
-
-      <section className="panel profile-actions">
-
-        <div>
-
-          <Shield size={21} />
-
-          <div>
-
-            <strong>
-              Аккаунт FENIX CITY
-            </strong>
-
-            <span>
-              Игровые данные загружены
-              с сервера.
-            </span>
-
-          </div>
-
         </div>
-
-        <button
-          className="danger-button"
-          onClick={logout}
-        >
-          ВЫЙТИ
-        </button>
-
-      </section>
-    </>
+      </div>
+    </div>
   );
 }
 
-
-/* ============================================================
-   PROFILE STAT
-============================================================ */
-
-function ProfileStat({
-  icon: Icon,
-  label,
+function ProfileRow({
+  title,
   value,
 }) {
   return (
-    <div className="profile-stat">
-
-      <div className="profile-stat-icon">
-        <Icon size={18} />
-      </div>
-
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
-
+    <div className="profile-row">
+      <span>{title}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
 
-
 /* ============================================================
-   EMPTY
+   COMPONENTS
 ============================================================ */
 
-function Empty({
-  text,
+function PageHeader({
+  eyebrow,
+  title,
+  description,
 }) {
   return (
-    <div className="empty-state">
-      <Package size={25} />
-      <span>
-        {text}
-      </span>
+    <div className="page-header">
+      <span>{eyebrow}</span>
+      <h1>{title}</h1>
+      <p>{description}</p>
     </div>
   );
 }
 
+function Panel({
+  title,
+  action,
+  onAction,
+  children,
+}) {
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>{title}</h2>
 
-/* ============================================================
-   EXPORT
-============================================================ */
+        {action && (
+          <button
+            onClick={onAction}
+            disabled={!onAction}
+          >
+            {action} →
+          </button>
+        )}
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+function Empty({ text }) {
+  return (
+    <div className="empty">
+      {text}
+    </div>
+  );
+}
+
+function MobileNav({
+  page,
+  navigate,
+}) {
+  const items = MENU.slice(
+    0,
+    5
+  );
+
+  return (
+    <nav className="mobile-nav">
+      {items.map(
+        ([id, label, icon]) => (
+          <button
+            key={id}
+            className={
+              page === id
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              navigate(id)
+            }
+          >
+            <Icon>
+              {ICONS[icon]}
+            </Icon>
+
+            <span>{label}</span>
+          </button>
+        )
+      )}
+    </nav>
+  );
+}
 
 export default App;
