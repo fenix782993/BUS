@@ -197,3 +197,95 @@ class VehicleState(Base):
     tuned_power = Column(Integer, default=0)
     tuned_speed = Column(Integer, default=0)
     handling_bonus = Column(Integer, default=0)
+
+class Family(Base):
+    __tablename__ = 'families'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(64), unique=True, nullable=False)
+    tag = Column(String(8), unique=True, nullable=False)
+    description = Column(String(255), default='')
+    level = Column(Integer, default=1)
+    rating = Column(Integer, default=0)
+    treasury = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class FamilyMember(Base):
+    __tablename__ = 'family_members'
+    id = Column(Integer, primary_key=True)
+    family_id = Column(Integer, ForeignKey('families.id'), nullable=False)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    role = Column(String(24), default='member')
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+class FamilyMessage(Base):
+    __tablename__ = 'family_messages'
+    id = Column(Integer, primary_key=True)
+    family_id = Column(Integer, ForeignKey('families.id'), nullable=False)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    text = Column(String(1000), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ChatMessage(Base):
+    __tablename__ = 'chat_messages'
+    id = Column(Integer, primary_key=True)
+    sender_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    recipient_id = Column(Integer, ForeignKey('players.id'), nullable=True)
+    channel = Column(String(16), default='global')
+    text = Column(String(1000), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class CurrencyTransfer(Base):
+    __tablename__ = 'currency_transfers'
+    id = Column(Integer, primary_key=True)
+    sender_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    recipient_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    currency = Column(String(8), nullable=False)
+    amount = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class Notification(Base):
+    __tablename__ = 'notifications'
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    title = Column(String(120), nullable=False)
+    text = Column(String(500), nullable=False)
+    kind = Column(String(24), default='info')
+    read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AuctionListing(Base):
+    __tablename__ = 'auction_listings'
+    id = Column(Integer, primary_key=True)
+    seller_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    vehicle_id = Column(Integer, ForeignKey('player_vehicles.id'), nullable=True)
+    title = Column(String(160), nullable=False)
+    price = Column(Float, nullable=False)
+    status = Column(String(16), default='active')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AuctionBid(Base):
+    __tablename__ = 'auction_bids'
+    id = Column(Integer, primary_key=True)
+    listing_id = Column(Integer, ForeignKey('auction_listings.id'), nullable=False)
+    bidder_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    amount = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class FamilyBattle(Base):
+    __tablename__ = 'family_battles'
+    id = Column(Integer, primary_key=True)
+    family_a = Column(Integer, ForeignKey('families.id'), nullable=False)
+    family_b = Column(Integer, ForeignKey('families.id'), nullable=False)
+    score_a = Column(Integer, default=0)
+    score_b = Column(Integer, default=0)
+    status = Column(String(16), default='active')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class DonationProof(Base):
+    __tablename__ = 'donation_proofs'
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey('donation_orders.id'), nullable=False)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    filename = Column(String(255), nullable=False)
+    stored_path = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

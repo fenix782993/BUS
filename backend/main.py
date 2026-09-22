@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 import hashlib, hmac, os, random
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -13,7 +13,7 @@ from .models import *
 from .services.seed import seed
 from .services.progression import add_xp, next_level_xp
 
-app = FastAPI(title='FENIX CITY V2', version='2.3.0')
+app = FastAPI(title='FENIX CITY V2', version='2.4.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 Base.metadata.create_all(engine)
 # Runtime tables for live gameplay are created above; initialize state rows below.
@@ -24,6 +24,9 @@ try:
     if 'role' not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE players ADD COLUMN role VARCHAR(16) DEFAULT 'user' NOT NULL"))
+    if 'avatar' not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE players ADD COLUMN avatar VARCHAR(500)"))
 except Exception:
     pass
 db = SessionLocal()
@@ -43,7 +46,7 @@ class Donation(BaseModel): package: str
 class VipPurchase(BaseModel): tier: str
 class MarketTrade(BaseModel): symbol: str; quantity: int = Field(ge=1, le=1000)
 
-PACKAGES = {'starter':(100,1.99),'plus':(250,4.49),'pro':(500,8.49),'mega':(1000,15.99),'ultra':(2500,34.99),'legend':(5000,64.99),'max':(10000,119.99)}
+PACKAGES = {'starter':(100,99),'plus':(250,199),'pro':(500,399),'mega':(1000,699),'ultra':(2500,1499),'legend':(5000,2999),'max':(10000,5999)}
 VIP_TIERS = {'VIP':(250,'+10% XP'),'VIP+':(600,'+15% XP'),'ELITE':(1200,'+25% XP'),'FENIX':(2500,'+35% XP')}
 
 def hash_password(value): return hashlib.sha256(value.encode('utf-8')).hexdigest()
@@ -96,7 +99,7 @@ def current(db, authorization):
 
 def out(p):
     nx = next_level_xp(p.level + 1)
-    return {'id':p.id,'nickname':p.nickname,'cash':round(p.cash,2),'coins':p.coins,'xp':p.xp,'level':p.level,'next_level_xp':nx,'level_progress':min(100,p.xp/max(1,nx)*100),'energy':p.energy,'reputation':p.reputation,'total_earned':p.total_earned,'jobs_completed':p.jobs_completed,'title':p.title,'vip':p.vip,'role':getattr(p,'role','user')}
+    return {'id':p.id,'nickname':p.nickname,'cash':round(p.cash,2),'coins':p.coins,'xp':p.xp,'level':p.level,'next_level_xp':nx,'level_progress':min(100,p.xp/max(1,nx)*100),'energy':p.energy,'reputation':p.reputation,'total_earned':p.total_earned,'jobs_completed':p.jobs_completed,'title':p.title,'vip':p.vip,'role':getattr(p,'role','user'),'avatar':getattr(p,'avatar',None)}
 
 def transaction(db,p,currency,amount,description): db.add(Transaction(player_id=p.id,currency=currency,amount=amount,description=description))
 
@@ -129,7 +132,7 @@ class AdminGrant(BaseModel):
 def admin_overview(authorization: str|None=Header(default=None), db: Session=Depends(get_db)):
     admin_current(db, authorization)
     players = db.query(Player).order_by(Player.id.desc()).limit(100).all()
-    return {'players':[{'id':p.id,'nickname':p.nickname,'level':p.level,'cash':round(p.cash,2),'coins':p.coins,'energy':p.energy,'xp':p.xp,'role':getattr(p,'role','user')} for p in players], 'counts':{'players':db.query(Player).count(),'transactions':db.query(Transaction).count(),'vehicles':db.query(Vehicle).count(),'companies':db.query(Company).count()}}
+    return {'players':[{'id':p.id,'nickname':p.nickname,'level':p.level,'cash':round(p.cash,2),'coins':p.coins,'energy':p.energy,'xp':p.xp,'role':getattr(p,'role','user'),'avatar':getattr(p,'avatar',None)} for p in players], 'counts':{'players':db.query(Player).count(),'transactions':db.query(Transaction).count(),'vehicles':db.query(Vehicle).count(),'companies':db.query(Company).count()}}
 
 @app.post('/api/admin/player/{pid}/grant')
 def admin_grant(pid:int, data:AdminGrant, authorization:str|None=Header(default=None), db:Session=Depends(get_db)):
@@ -143,7 +146,7 @@ def admin_grant(pid:int, data:AdminGrant, authorization:str|None=Header(default=
     db.commit(); return out(p)
 
 @app.get('/api/health')
-def health(): return {'status':'ok','service':'FENIX CITY V2','version':'2.3.0'}
+def health(): return {'status':'ok','service':'FENIX CITY V2','version':'2.4.0'}
 
 @app.post('/api/register')
 def register(a:Auth,db:Session=Depends(get_db)):
@@ -516,6 +519,176 @@ def transactions(authorization:str|None=Header(default=None),db:Session=Depends(
     p=current(db,authorization)
     return [{'id':x.id,'currency':x.currency,'amount':x.amount,'description':x.description,'created_at':x.created_at.isoformat()} for x in db.query(Transaction).filter_by(player_id=p.id).order_by(Transaction.id.desc()).limit(100)]
 
+
+
+# ---------------- SOCIAL / FAMILIES / TRADING / DONATIONS V2.4 ----------------
+class TextBody(BaseModel): text: str = Field(min_length=1, max_length=1000)
+class TransferBody(BaseModel): recipient: str; currency: str; amount: float = Field(gt=0, le=1000000000)
+class FamilyCreate(BaseModel): name: str = Field(min_length=3, max_length=64); tag: str = Field(min_length=2, max_length=8); description: str = Field(default='', max_length=255)
+class AuctionCreate(BaseModel): vehicle_player_id: int; title: str = Field(min_length=3,max_length=160); price: float = Field(gt=0)
+class DonationProofMeta(BaseModel): order_id: int
+
+@app.get('/api/social/chat')
+def social_chat(authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    rows=db.query(ChatMessage).filter(ChatMessage.channel=='global').order_by(ChatMessage.id.desc()).limit(80).all()
+    return [{'id':x.id,'sender_id':x.sender_id,'sender':db.get(Player,x.sender_id).nickname,'text':x.text,'created_at':x.created_at.isoformat(),'own':x.sender_id==p.id} for x in reversed(rows)]
+
+@app.post('/api/social/chat')
+def social_chat_send(data:TextBody, authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization); m=ChatMessage(sender_id=p.id,channel='global',text=data.text.strip()); db.add(m); db.commit(); return {'ok':True,'id':m.id}
+
+@app.get('/api/social/notifications')
+def social_notifications(authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    rows=db.query(Notification).filter_by(player_id=p.id).order_by(Notification.id.desc()).limit(50).all()
+    return [{'id':x.id,'title':x.title,'text':x.text,'kind':x.kind,'read':x.read,'created_at':x.created_at.isoformat()} for x in rows]
+
+@app.post('/api/social/notifications/read')
+def social_notifications_read(authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    for x in db.query(Notification).filter_by(player_id=p.id,read=False).all(): x.read=True
+    db.commit(); return {'ok':True}
+
+@app.post('/api/social/transfer')
+def social_transfer(data:TransferBody, authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization); recipient=db.query(Player).filter(Player.nickname.ilike(data.recipient)).first()
+    if not recipient or recipient.id==p.id: raise HTTPException(400,'Получатель не найден')
+    currency=data.currency.upper(); amount=float(data.amount)
+    if currency=='RUB':
+        if p.cash<amount: raise HTTPException(400,'Недостаточно ₽')
+        p.cash-=amount; recipient.cash+=amount
+    elif currency=='FC':
+        if p.coins<amount: raise HTTPException(400,'Недостаточно FC')
+        p.coins-=int(amount); recipient.coins+=int(amount); amount=int(amount)
+    else: raise HTTPException(400,'Можно переводить только RUB или FC')
+    db.add(CurrencyTransfer(sender_id=p.id,recipient_id=recipient.id,currency=currency,amount=amount))
+    db.add(Notification(player_id=recipient.id,title='Новый перевод',text=f'{p.nickname} отправил вам {amount:,.0f} {currency}',kind='money'))
+    transaction(db,p,currency,-amount,f'Перевод игроку {recipient.nickname}'); transaction(db,recipient,currency,amount,f'Получен перевод от {p.nickname}'); db.commit()
+    return out(p)
+
+@app.get('/api/families')
+def families(authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization); mine=db.query(FamilyMember).filter_by(player_id=p.id).first()
+    result=[]
+    for f in db.query(Family).order_by(Family.rating.desc()).limit(100).all():
+        count=db.query(FamilyMember).filter_by(family_id=f.id).count(); result.append({'id':f.id,'name':f.name,'tag':f.tag,'description':f.description,'level':f.level,'rating':f.rating,'treasury':round(f.treasury,2),'members':count,'mine':bool(mine and mine.family_id==f.id)})
+    return result
+
+@app.post('/api/families')
+def family_create(data:FamilyCreate, authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    if db.query(FamilyMember).filter_by(player_id=p.id).first(): raise HTTPException(400,'Ты уже состоишь в семье')
+    if db.query(Family).filter((Family.name==data.name)|(Family.tag==data.tag.upper())).first(): raise HTTPException(400,'Название или тег занят')
+    f=Family(name=data.name,tag=data.tag.upper(),description=data.description,level=1,rating=100); db.add(f); db.flush(); db.add(FamilyMember(family_id=f.id,player_id=p.id,role='leader')); db.commit(); return {'id':f.id}
+
+@app.post('/api/families/{fid}/join')
+def family_join(fid:int, authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization); f=db.get(Family,fid)
+    if not f: raise HTTPException(404,'Семья не найдена')
+    if db.query(FamilyMember).filter_by(player_id=p.id).first(): raise HTTPException(400,'Сначала выйди из текущей семьи')
+    db.add(FamilyMember(family_id=f.id,player_id=p.id,role='member')); f.rating+=1; db.commit(); return {'ok':True}
+
+@app.get('/api/families/{fid}/chat')
+def family_chat(fid:int, authorization: str|None=Header(default=None), db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    if not db.query(FamilyMember).filter_by(family_id=fid,player_id=p.id).first(): raise HTTPException(403,'Ты не в семье')
+    rows=db.query(FamilyMessage).filter_by(family_id=fid).order_by(FamilyMessage.id.desc()).limit(80).all()
+    return [{'id':x.id,'sender':db.get(Player,x.player_id).nickname,'text':x.text,'created_at':x.created_at.isoformat(),'own':x.player_id==p.id} for x in reversed(rows)]
+
+@app.post('/api/families/{fid}/chat')
+def family_chat_send(fid:int,data:TextBody,authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    if not db.query(FamilyMember).filter_by(family_id=fid,player_id=p.id).first(): raise HTTPException(403,'Ты не в семье')
+    m=FamilyMessage(family_id=fid,player_id=p.id,text=data.text.strip()); db.add(m); db.commit(); return {'ok':True}
+
+@app.get('/api/families/me')
+def family_me(authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); m=db.query(FamilyMember).filter_by(player_id=p.id).first()
+    if not m:return {'family':None}
+    f=db.get(Family,m.family_id); members=[]
+    for x in db.query(FamilyMember).filter_by(family_id=f.id).all():
+        u=db.get(Player,x.player_id); members.append({'id':u.id,'nickname':u.nickname,'level':u.level,'role':x.role,'reputation':u.reputation})
+    return {'family':{'id':f.id,'name':f.name,'tag':f.tag,'level':f.level,'rating':f.rating,'treasury':round(f.treasury,2),'members':members}}
+
+@app.get('/api/families/battles')
+def family_battles(authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    current(db,authorization); rows=db.query(FamilyBattle).order_by(FamilyBattle.id.desc()).limit(30).all()
+    return [{'id':x.id,'a':db.get(Family,x.family_a).name,'b':db.get(Family,x.family_b).name,'score_a':x.score_a,'score_b':x.score_b,'status':x.status} for x in rows]
+
+@app.get('/api/auctions')
+def auctions(authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    current(db,authorization); rows=db.query(AuctionListing).filter_by(status='active').order_by(AuctionListing.id.desc()).limit(100).all(); out_rows=[]
+    for x in rows:
+        seller=db.get(Player,x.seller_id); out_rows.append({'id':x.id,'title':x.title,'price':x.price,'seller':seller.nickname,'vehicle_player_id':x.vehicle_id,'created_at':x.created_at.isoformat()})
+    return out_rows
+
+@app.post('/api/auctions')
+def auction_create(data:AuctionCreate,authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); pv=db.get(PlayerVehicle,data.vehicle_player_id)
+    if not pv or pv.player_id!=p.id: raise HTTPException(403,'Автомобиль не найден')
+    if db.query(AuctionListing).filter_by(vehicle_id=pv.id,status='active').first(): raise HTTPException(400,'Автомобиль уже выставлен')
+    row=AuctionListing(seller_id=p.id,vehicle_id=pv.id,title=data.title,price=data.price); db.add(row); db.commit(); return {'id':row.id}
+
+@app.post('/api/auctions/{aid}/buy')
+def auction_buy(aid:int,authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); a=db.get(AuctionListing,aid)
+    if not a or a.status!='active': raise HTTPException(404,'Лот недоступен')
+    if a.seller_id==p.id: raise HTTPException(400,'Нельзя купить свой лот')
+    if p.cash<a.price: raise HTTPException(400,'Недостаточно ₽')
+    pv=db.get(PlayerVehicle,a.vehicle_id); seller=db.get(Player,a.seller_id)
+    p.cash-=a.price; seller.cash+=a.price; pv.player_id=p.id; a.status='sold'
+    transaction(db,p,'RUB',-a.price,f'Аукцион: {a.title}'); transaction(db,seller,'RUB',a.price,f'Продажа на аукционе: {a.title}'); db.commit(); return out(p)
+
+@app.post('/api/profile/avatar')
+async def profile_avatar(file:UploadFile=File(...),authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    if not file.content_type or not file.content_type.startswith('image/'): raise HTTPException(400,'Нужен файл изображения')
+    data=await file.read()
+    if len(data)>4*1024*1024: raise HTTPException(400,'Максимум 4 МБ')
+    folder=Path(__file__).resolve().parent/'uploads'; folder.mkdir(exist_ok=True)
+    safe=f'avatar_{p.id}_{int(datetime.utcnow().timestamp())}.bin'; path=folder/safe; path.write_bytes(data); p.avatar=f'/uploads/{safe}'; db.commit(); return {'avatar':p.avatar}
+
+@app.post('/api/donations/{order_id}/proof')
+async def donation_proof(order_id:int,file:UploadFile=File(...),authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); order=db.get(DonationOrder,order_id)
+    if not order or order.player_id!=p.id: raise HTTPException(404,'Заявка не найдена')
+    if order.status!='pending': raise HTTPException(400,'Заявка уже обработана')
+    if not file.content_type or not file.content_type.startswith('image/'): raise HTTPException(400,'Загрузите скриншот изображения')
+    data=await file.read()
+    if len(data)>6*1024*1024: raise HTTPException(400,'Максимум 6 МБ')
+    folder=Path(__file__).resolve().parent/'uploads'/'donations'; folder.mkdir(parents=True,exist_ok=True)
+    safe=f'proof_{order.id}_{int(datetime.utcnow().timestamp())}.bin'; path=folder/safe; path.write_bytes(data)
+    db.add(DonationProof(order_id=order.id,player_id=p.id,filename=file.filename or safe,stored_path=str(path))); db.commit(); return {'ok':True,'status':'pending_review'}
+
+@app.get('/api/admin/donations')
+def admin_donations(authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    admin_current(db,authorization); rows=db.query(DonationOrder).order_by(DonationOrder.id.desc()).limit(100).all(); result=[]
+    for o in rows:
+        proof=db.query(DonationProof).filter_by(order_id=o.id).order_by(DonationProof.id.desc()).first(); u=db.get(Player,o.player_id)
+        result.append({'id':o.id,'player_id':o.player_id,'nickname':u.nickname,'package':o.package,'coins':o.coins,'amount':o.amount,'status':o.status,'proof':bool(proof),'proof_url':f'/api/admin/donations/{o.id}/proof' if proof else None,'created_at':o.created_at.isoformat()})
+    return result
+
+@app.post('/api/admin/donations/{order_id}/approve')
+def admin_donation_approve(order_id:int,authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    admin_current(db,authorization); o=db.get(DonationOrder,order_id)
+    if not o or o.status!='pending': raise HTTPException(404,'Заявка недоступна')
+    p=db.get(Player,o.player_id); p.coins+=o.coins; o.status='approved'; transaction(db,p,'FC',o.coins,f'Донат подтверждён #{o.id}'); db.add(Notification(player_id=p.id,title='Донат подтверждён',text=f'Начислено {o.coins} FC',kind='success')); db.commit(); return {'ok':True}
+
+@app.post('/api/admin/donations/{order_id}/reject')
+def admin_donation_reject(order_id:int,authorization: str|None=Header(default=None),db:Session=Depends(get_db)):
+    admin_current(db,authorization); o=db.get(DonationOrder,order_id)
+    if not o or o.status!='pending': raise HTTPException(404,'Заявка недоступна')
+    o.status='rejected'; db.add(Notification(player_id=o.player_id,title='Донат отклонён',text=f'Заявка #{o.id} отклонена DEV.',kind='warning')); db.commit(); return {'ok':True}
+
+@app.get('/api/config/donations')
+def donation_config():
+    return {'requisites':os.getenv('DONATION_REQUISITES','Укажи реквизиты в Render Environment: DONATION_REQUISITES'),'note':'Оплата проверяется вручную разработчиком после загрузки скриншота. Автоматического подтверждения нет.'}
+
+
+uploads=Path(__file__).resolve().parent/'uploads'
+uploads.mkdir(exist_ok=True)
+app.mount('/uploads',StaticFiles(directory=uploads),name='uploads')
 dist=Path(__file__).resolve().parents[1]/'frontend'/'dist'
 if dist.exists(): app.mount('/assets',StaticFiles(directory=dist/'assets'),name='assets')
 @app.get('/')
