@@ -1,3 +1,21 @@
 @media(max-width:1000px){aside{width:205px}main{margin-left:205px}.stats{grid-template-columns:1fr 1fr}.cards{grid-template-columns:1fr 1fr}}
 @media(max-width:720px){aside{display:none}main{margin-left:0;padding-bottom:76px}.top{padding:0 14px}.content{padding:18px 14px}.head{gap:12px;align-items:flex-start;flex-direction:column}.head h1{font-size:28px}.stats,.two,.cards{grid-template-columns:1fr}.mobile{position:fixed;display:grid;grid-template-columns:repeat(5,1fr);bottom:0;left:0;right:0;height:66px;background:#0d0e11;border-top:1px solid var(--border);z-index:20}.mobile button{border:0;background:none;color:#737780}.mobile button.active{color:var(--accent)}.top-actions b{font-size:12px}.top-id{display:none}}
 @media(max-width:700px){.choice-grid{grid-template-columns:1fr}.cards .cards{grid-template-columns:1fr}.profile-hero{flex-direction:column}.section-title{align-items:flex-start}}
+
+/* V3.1 navigation visibility fix */
+@media(min-width:721px){
+  aside{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#2b2f37 transparent;padding-bottom:88px}
+  .sidebar-nav{padding-bottom:20px}
+}
+@media(max-width:720px){
+  .mobile{grid-template-columns:repeat(5,1fr);height:72px;padding-bottom:env(safe-area-inset-bottom)}
+  .mobile button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:52px;font-size:10px;font-weight:800}
+  .mobile-menu-backdrop{position:fixed;inset:0;background:#000b;z-index:90;display:flex;align-items:flex-end}
+  .mobile-menu{width:100%;max-height:82vh;overflow:auto;background:#101216;border:1px solid #292d35;border-bottom:0;border-radius:22px 22px 0 0;padding:16px 14px 90px;box-shadow:0 -20px 70px #000c}
+  .mobile-menu-head{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 16px;color:#fff}
+  .mobile-menu-head button{width:42px;height:42px;border-radius:12px;border:1px solid #292d35;background:#181a20;color:#aaa;display:grid;place-items:center}
+  .mobile-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .mobile-menu-grid button{min-height:58px;border:1px solid #252932;border-radius:14px;background:#15171c;color:#aeb2ba;display:flex;align-items:center;gap:10px;padding:12px;text-align:left;font-weight:800}
+  .mobile-menu-grid button.active{border-color:#ff6a0055;background:#ff6a0014;color:#fff}
+  .mobile-menu-grid button.active svg{color:#ff6a00}
+}
