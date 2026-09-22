@@ -13,7 +13,7 @@ from .models import *
 from .services.seed import seed
 from .services.progression import add_xp, next_level_xp
 
-app = FastAPI(title='FENIX CITY', version='2.5.0')
+app = FastAPI(title='FENIX CITY', version='3.0.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 Base.metadata.create_all(engine)
 # Runtime tables for live gameplay are created above; initialize state rows below.
@@ -27,6 +27,12 @@ try:
     if 'avatar' not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE players ADD COLUMN avatar VARCHAR(500)"))
+    state_cols = {c['name'] for c in insp.get_columns('player_states')} if insp.has_table('player_states') else set()
+    with engine.begin() as conn:
+        if 'last_city_action_at' not in state_cols:
+            conn.execute(text("ALTER TABLE player_states ADD COLUMN last_city_action_at DATETIME"))
+        if 'last_daily_bonus_at' not in state_cols:
+            conn.execute(text("ALTER TABLE player_states ADD COLUMN last_daily_bonus_at DATETIME"))
 except Exception:
     pass
 db = SessionLocal()
@@ -45,6 +51,8 @@ class Action(BaseModel): action: str
 class Donation(BaseModel): package: str
 class VipPurchase(BaseModel): tier: str
 class MarketTrade(BaseModel): symbol: str; quantity: int = Field(ge=1, le=1000)
+class CityAction(BaseModel): action: str
+class RaceStart(BaseModel): player_vehicle_id: int; difficulty: str = 'normal'
 
 PACKAGES = {'starter':(100,99),'plus':(250,199),'pro':(500,399),'mega':(1000,699),'ultra':(2500,1499),'legend':(5000,2999),'max':(10000,5999)}
 VIP_TIERS = {'VIP':(250,'+10% XP'),'VIP+':(600,'+15% XP'),'ELITE':(1200,'+25% XP'),'FENIX':(2500,'+35% XP')}
@@ -146,7 +154,7 @@ def admin_grant(pid:int, data:AdminGrant, authorization:str|None=Header(default=
     db.commit(); return out(p)
 
 @app.get('/api/health')
-def health(): return {'status':'ok','service':'FENIX CITY','version':'2.5.0'}
+def health(): return {'status':'ok','service':'FENIX CITY','version':'3.0.0'}
 
 @app.post('/api/register')
 def register(a:Auth,db:Session=Depends(get_db)):
@@ -455,6 +463,78 @@ def districts():
     ]
 @app.get('/api/events')
 def events(): return [{'id':1,'title':'Рабочий день','description':'Городская активность повышает доход рабочих смен.','reward':'XP +10%'},{'id':2,'title':'Рынок LIVE','description':'Котировки обновляются сервером — можно покупать и продавать активы.','reward':'LIVE'},{'id':3,'title':'Ночная жизнь','description':'Набережная и Премиум активнее вечером.','reward':'Активность +12%'}]
+
+@app.get('/api/city/live')
+def city_live(authorization: str|None=Header(default=None), db: Session=Depends(get_db)):
+    p=current(db,authorization)
+    hour=datetime.utcnow().hour
+    districts=[
+        {'id':1,'name':'Центр','activity':78 if 8<=hour<=20 else 54,'income_bonus':1.08},
+        {'id':2,'name':'Старый город','activity':64 if 12<=hour<=23 else 42,'income_bonus':1.04},
+        {'id':3,'name':'Промзона','activity':71 if 7<=hour<=18 else 38,'income_bonus':1.12},
+        {'id':4,'name':'Премиум','activity':52 if 18<=hour<=23 else 34,'income_bonus':1.15},
+        {'id':5,'name':'Аэропорт','activity':67 if 5<=hour<=22 else 25,'income_bonus':1.10},
+    ]
+    state=db.query(PlayerState).filter_by(player_id=p.id).first()
+    now=datetime.utcnow()
+    city_cd=max(0,30-int((now-state.last_city_action_at).total_seconds())) if state and state.last_city_action_at else 0
+    bonus_cd=max(0,86400-int((now-state.last_daily_bonus_at).total_seconds())) if state and state.last_daily_bonus_at else 0
+    return {'server_time':now.isoformat(),'districts':districts,'city_action_cooldown':city_cd,'daily_bonus_cooldown':bonus_cd,'online':db.query(Player).count()}
+
+@app.post('/api/city/action')
+def city_action(data:CityAction, authorization: str|None=Header(default=None), db: Session=Depends(get_db)):
+    p=current(db,authorization); state=refresh_energy(db,p); now=datetime.utcnow()
+    if state.last_city_action_at and (now-state.last_city_action_at).total_seconds()<30: raise HTTPException(429,'Городское действие доступно раз в 30 секунд')
+    actions={'center':('Прогулка по центру',250,8,4),'port':('Работа в порту',420,10,6),'nightlife':('Ночная жизнь',300,7,5),'gym':('Тренировка',180,5,12),'deal':('Уличная сделка',650,12,7)}
+    if data.action not in actions: raise HTTPException(400,'Неизвестное действие')
+    title,reward,energy,xp=actions[data.action]
+    if p.energy<energy: raise HTTPException(400,'Недостаточно энергии')
+    p.energy-=energy; p.cash+=reward; p.total_earned+=reward; p.reputation+=1; add_xp(p,xp); state.last_city_action_at=now
+    transaction(db,p,'RUB',reward,f'Город: {title}')
+    db.add(Notification(player_id=p.id,title='Городское событие',text=f'{title}: +{reward:,} ₽ и +{xp} XP'.replace(',',' '),kind='city'))
+    db.commit(); return {'title':title,'reward':reward,'xp':xp,'player':out(p)}
+
+@app.post('/api/daily-bonus')
+def daily_bonus(authorization: str|None=Header(default=None), db: Session=Depends(get_db)):
+    p=current(db,authorization); state=refresh_energy(db,p); now=datetime.utcnow()
+    if state.last_daily_bonus_at and (now-state.last_daily_bonus_at).total_seconds()<86400: raise HTTPException(429,'Ежедневная награда уже получена')
+    reward=1500+p.level*250; coins=5+min(20,p.level//2)
+    p.cash+=reward; p.coins+=coins; p.reputation+=3; add_xp(p,80); state.last_daily_bonus_at=now
+    transaction(db,p,'RUB',reward,'Ежедневная награда'); transaction(db,p,'FC',coins,'Ежедневная награда')
+    db.add(Notification(player_id=p.id,title='Ежедневная награда',text=f'+{reward:,} ₽ · +{coins} FC · +80 XP'.replace(',',' '),kind='reward'))
+    db.commit(); return {'cash':reward,'coins':coins,'xp':80,'player':out(p)}
+
+@app.get('/api/race/history')
+def race_history(authorization: str|None=Header(default=None), db: Session=Depends(get_db)):
+    p=current(db,authorization)
+    rows=db.query(RaceResult).filter_by(player_id=p.id).order_by(RaceResult.id.desc()).limit(12).all()
+    return [{'id':r.id,'opponent':r.opponent,'difficulty':r.difficulty,'result':r.result,'reward':r.reward,'xp':r.xp_reward,'created_at':r.created_at.isoformat()} for r in rows]
+
+@app.post('/api/race/start')
+def race_start(data:RaceStart, authorization: str|None=Header(default=None), db: Session=Depends(get_db)):
+    p=current(db,authorization); state=refresh_energy(db,p)
+    pv=db.query(PlayerVehicle).filter_by(id=data.player_vehicle_id,player_id=p.id).first()
+    if not pv: raise HTTPException(404,'Автомобиль не найден')
+    vs=db.query(VehicleState).filter_by(player_vehicle_id=pv.id).first()
+    v=db.get(Vehicle,pv.vehicle_id)
+    if not vs or not v: raise HTTPException(400,'Состояние автомобиля не найдено')
+    if p.energy<18: raise HTTPException(400,'Нужно минимум 18 энергии')
+    if vs.condition<15: raise HTTPException(400,'Автомобиль слишком повреждён')
+    difficulty=data.difficulty if data.difficulty in {'easy','normal','hard'} else 'normal'
+    cfg={'easy':(0.78,700,35),'normal':(0.90,1300,55),'hard':(1.02,2300,80)}[difficulty]
+    score=v.speed+vs.tuned_speed*4+v.handling+vs.handling_bonus*3+random.randint(-35,35)
+    opponent_score=int((v.speed+v.handling)*cfg[0]+random.randint(-45,45))
+    win=score>=opponent_score
+    p.energy-=18; vs.condition=max(0,vs.condition-random.randint(3,9)); vs.mileage+=random.randint(4,15)
+    reward=cfg[1] if win else int(cfg[1]*0.18); xp=cfg[2] if win else max(10,int(cfg[2]*0.25))
+    if win: p.cash+=reward; p.total_earned+=reward; p.reputation+=2
+    add_xp(p,xp)
+    opponent=random.choice(['Street King','Raven RS','Night Wolf','Orange GT','Vortex Crew'])
+    rr=RaceResult(player_id=p.id,player_vehicle_id=pv.id,opponent=opponent,difficulty=difficulty,result='win' if win else 'loss',reward=reward,xp_reward=xp)
+    db.add(rr)
+    if reward: transaction(db,p,'RUB',reward,f'Гонка против {opponent}')
+    db.add(Notification(player_id=p.id,title='Уличная гонка',text=('Победа' if win else 'Поражение')+f' против {opponent}',kind='race'))
+    db.commit(); return {'result':'win' if win else 'loss','opponent':opponent,'reward':reward,'xp':xp,'score':score,'opponent_score':opponent_score,'condition':vs.condition,'player':out(p)}
 
 @app.get('/api/market')
 def market(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):

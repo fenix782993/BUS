@@ -1,57 +1,58 @@
-# FENIX CITY 2.5 REAL FULL
+# FENIX CITY V3.0 — FULL GAME
 
-FENIX CITY — responsive virtual city/economy game with real server-side gameplay.
+Полноценная браузерная city/economy игра: React + Vite + FastAPI + SQLite/PostgreSQL.
 
-## Included
-
-- Live city chat with 2-second polling
-- Notifications and unread state
-- Player-to-player RUB / FC transfers
-- Families with leader/officer/member roles
-- Family chat with live polling
-- Family leave and leader succession
-- Playable family battle foundation: challenge, score actions, 100-point finish and rating reward
-- Vehicle auction: listings, instant buy and bidding
-- Avatar image upload
-- Manual RUB donation queue
-- Payment screenshot upload
-- DEV donation review / approve / reject
-- FC credited only by server after approval
-- Donation requisites from `DONATION_REQUISITES`
-- Timed work shifts with automatic completion, rewards, XP and energy regeneration
-- Garage, tuning, properties, companies, market, missions, shop, VIP and progression
-- Mobile navigation and responsive layouts
-- Smooth transitions, live states and motion polish
+## Уже внутри
+- живая экономика RUB / FC
+- уровни, XP, энергия, репутация
+- работа с таймерами и автоматической выплатой
+- городские активности с cooldown
+- ежедневная награда
+- районы с динамической активностью
+- уличные гонки с реальным расчётом характеристик машины
+- износ и пробег автомобилей
+- гараж, покупка, выбор, тюнинг и аукцион
+- рынок с покупкой/продажей
+- недвижимость и сбор дохода
+- бизнесы и пассивный доход
+- миссии и достижения
+- магазин, инвентарь, VIP
+- глобальный чат, переводы RUB/FC и уведомления
+- семьи, роли, семейный чат и битвы
+- профиль, аватар и DEV-роль
+- ручные донаты: RUB → скриншот → очередь DEV → approve/reject → серверное начисление FC
+- адаптивный интерфейс PC + mobile
+- тёмный FENIX UI с анимациями и живыми состояниями
 
 ## Render
-
-Build command:
-
+Build Command:
 ```text
 pip install -r requirements.txt && cd frontend && npm install && npm run build
 ```
 
-Start command:
-
+Start Command:
 ```text
 uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-## Donation setup
-
-In Render Environment Variables set:
-
+Environment:
 ```text
 DONATION_REQUISITES=YOUR_PAYMENT_REQUISITES
 ```
 
-Do not place payment requisites in frontend source.
-
-## Developer account
-
+## DEV
+При первом запуске создаётся DEV:
 ```text
 Nickname: FENIX
 Password: webFenix12
 ```
+Перед публичным запуском пароль нужно заменить и усилить авторизацию.
 
-Change credentials before any public production release.
+## Проверка
+```text
+/api/health
+/api/docs
+```
+
+## Важно
+Frontend build не следует считать проверенным локально, если `npm install` в среде разработки не завершился. Render выполнит чистую установку зависимостей перед Vite build.

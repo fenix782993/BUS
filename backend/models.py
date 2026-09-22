@@ -173,6 +173,8 @@ class PlayerState(Base):
     last_energy_at = Column(DateTime, default=datetime.utcnow)
     active_vehicle_id = Column(Integer, ForeignKey('vehicles.id'), nullable=True)
     last_work_at = Column(DateTime, nullable=True)
+    last_city_action_at = Column(DateTime, nullable=True)
+    last_daily_bonus_at = Column(DateTime, nullable=True)
 
 class JobSession(Base):
     __tablename__ = 'job_sessions'
@@ -288,4 +290,17 @@ class DonationProof(Base):
     player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
     filename = Column(String(255), nullable=False)
     stored_path = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RaceResult(Base):
+    __tablename__ = 'race_results'
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    player_vehicle_id = Column(Integer, ForeignKey('player_vehicles.id'), nullable=False)
+    opponent = Column(String(80), nullable=False)
+    difficulty = Column(String(16), nullable=False)
+    result = Column(String(16), nullable=False)
+    reward = Column(Float, default=0)
+    xp_reward = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)

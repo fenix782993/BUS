@@ -1,7 +1,7 @@
 {
-  "name": "fenix-city-v2",
+  "name": "fenix-city-v3",
   "private": true,
-  "version": "2.5.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

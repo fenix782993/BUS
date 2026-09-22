@@ -16,7 +16,7 @@ export default function DashboardPage({player,onWork,onNavigate}){
  },[player]);
  const activeDistricts=city.filter(x=>Number(x.activity||0)>55).slice(0,3);
  return <>
-  <PageHeader title={`ДОБРО ПОЖАЛОВАТЬ, ${player.nickname.toUpperCase()}`} subtitle="FENIX CITY — живая экономика, карьера, транспорт, бизнес и социальная жизнь." action="НАЧАТЬ СМЕНУ" onAction={onWork}/>
+  <PageHeader title={`ДОБРО ПОЖАЛОВАТЬ, ${player.nickname.toUpperCase()}`} subtitle="FENIX CITY V3 — живая экономика, карьера, транспорт, бизнес и социальная жизнь." action="НАЧАТЬ СМЕНУ" onAction={onWork}/>
 
   <section className="city-hero-card">
    <div className="city-hero-copy">
