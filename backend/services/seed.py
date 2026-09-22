@@ -29,16 +29,23 @@ def seed(db):
             ('Founder Title','Титул Founder','title','legendary',500,'FC'),
         ]
         for x in rows: db.add(Item(name=x[0], description=x[1], category=x[2], rarity=x[3], price=x[4], currency=x[5]))
-    if not db.query(Vehicle).count():
-        for x in [('Fenix Compact',18000,95,'C',150,70),('Fenix Sport',75000,180,'B',220,78),('Fenix GT',240000,310,'A',285,86),('Fenix Hyper',850000,520,'S',350,92),('Fenix Royale',2200000,700,'S+',420,96)]:
-            db.add(Vehicle(name=x[0],price=x[1],power=x[2],class_name=x[3],speed=x[4],handling=x[5]))
-    if not db.query(Property).count():
-        for x in [('Студия',120000,'Центр',800,'apartment'),('Квартира',320000,'Центр',2200,'apartment'),('Пентхаус',650000,'Центр',4500,'penthouse'),('Особняк',1800000,'Премиум',12000,'house'),('Башня',5000000,'Премиум',40000,'estate')]:
-            db.add(Property(name=x[0],price=x[1],district=x[2],income=x[3],type=x[4]))
-    if not db.query(Company).count():
-        for x in [('Fenix Auto','Автосервис','Промзона',400000,6500),('Fenix Cafe','Общепит','Центр',650000,9500),('Fenix Logistics','Логистика','Промзона',1200000,18000),('Fenix Bank','Финансы','Премиум',3500000,55000)]:
-            db.add(Company(name=x[0],sector=x[1],district=x[2],price=x[3],income=x[4]))
-    if not db.query(MarketAsset).count():
-        for x in [('FNX','FENIX Index',1000,2.4,12000),('AUTO','Auto Market',760,1.1,8500),('REAL','Real Estate',1320,-0.8,6200),('TECH','City Tech',1880,3.7,9100)]:
-            db.add(MarketAsset(symbol=x[0],name=x[1],price=x[2],change=x[3],volume=x[4]))
+    vehicle_rows = [
+        ('Fenix Compact',18000,95,'C',150,70),('Fenix Sport',75000,180,'B',220,78),('Fenix GT',240000,310,'A',285,86),('Fenix Hyper',850000,520,'S',350,92),('Fenix Royale',2200000,700,'S+',420,96),
+        ('Fenix Urban X',42000,125,'C',175,76),('Fenix Roadster',135000,225,'B',250,84),('Fenix Vortex',420000,380,'A',305,90),('Fenix Phantom',1250000,610,'S',385,94),('Fenix Sovereign',4800000,820,'S+',455,98),('Fenix Classic',68000,145,'B',205,72),('Fenix GT-RS',690000,470,'A+',330,93),('Fenix Titan',1750000,580,'S',370,89),('Fenix Apex',7200000,950,'X',510,99),('Fenix Nova EV',980000,540,'S',390,97),
+    ]
+    existing={v.name for v in db.query(Vehicle).all()}
+    for x in vehicle_rows:
+        if x[0] not in existing: db.add(Vehicle(name=x[0],price=x[1],power=x[2],class_name=x[3],speed=x[4],handling=x[5]))
+    property_rows = [('Студия',120000,'Центр',800,'apartment'),('Квартира',320000,'Центр',2200,'apartment'),('Пентхаус',650000,'Центр',4500,'penthouse'),('Особняк',1800000,'Премиум',12000,'house'),('Башня',5000000,'Премиум',40000,'estate'),('Лофт',780000,'Старый город',6200,'loft'),('Вилла',3200000,'Премиум',24000,'villa'),('Аэропорт-резиденция',6500000,'Аэропорт',52000,'estate')]
+    existing_p={p.name for p in db.query(Property).all()}
+    for x in property_rows:
+        if x[0] not in existing_p: db.add(Property(name=x[0],price=x[1],district=x[2],income=x[3],type=x[4]))
+    company_rows = [('Fenix Auto','Автосервис','Промзона',400000,6500),('Fenix Cafe','Общепит','Центр',650000,9500),('Fenix Logistics','Логистика','Промзона',1200000,18000),('Fenix Bank','Финансы','Премиум',3500000,55000),('Fenix Media','Медиа','Старый город',900000,14500),('Fenix Energy','Энергетика','Промзона',2100000,32000),('Fenix Air','Авиация','Аэропорт',5200000,76000)]
+    existing_c={c.name for c in db.query(Company).all()}
+    for x in company_rows:
+        if x[0] not in existing_c: db.add(Company(name=x[0],sector=x[1],district=x[2],price=x[3],income=x[4]))
+    market_rows=[('FNX','FENIX Index',1000,2.4,12000),('AUTO','Auto Market',760,1.1,8500),('REAL','Real Estate',1320,-0.8,6200),('TECH','City Tech',1880,3.7,9100),('BANK','Fenix Bank',2450,1.8,7200),('ENERGY','Fenix Energy',3180,-1.2,6500),('AIR','Fenix Air',4100,3.1,5100),('MEDIA','Fenix Media',870,0.6,4800)]
+    existing_m={m.symbol for m in db.query(MarketAsset).all()}
+    for x in market_rows:
+        if x[0] not in existing_m: db.add(MarketAsset(symbol=x[0],name=x[1],price=x[2],change=x[3],volume=x[4]))
     db.commit()

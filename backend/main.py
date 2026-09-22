@@ -13,9 +13,10 @@ from .models import *
 from .services.seed import seed
 from .services.progression import add_xp, next_level_xp
 
-app = FastAPI(title='FENIX CITY V2', version='2.1.0')
+app = FastAPI(title='FENIX CITY V2', version='2.3.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 Base.metadata.create_all(engine)
+# Runtime tables for live gameplay are created above; initialize state rows below.
 # Lightweight migration for existing Render databases.
 try:
     insp = inspect(engine)
@@ -48,12 +49,49 @@ VIP_TIERS = {'VIP':(250,'+10% XP'),'VIP+':(600,'+15% XP'),'ELITE':(1200,'+25% XP
 def hash_password(value): return hashlib.sha256(value.encode('utf-8')).hexdigest()
 def valid_password(stored, supplied): return hmac.compare_digest(stored, hash_password(supplied)) or hmac.compare_digest(stored, supplied)
 
+def refresh_energy(db, p):
+    state=db.query(PlayerState).filter_by(player_id=p.id).first()
+    if not state:
+        state=PlayerState(player_id=p.id,last_energy_at=datetime.utcnow()); db.add(state); db.flush()
+    now=datetime.utcnow()
+    elapsed=max(0,(now-state.last_energy_at).total_seconds())
+    regen=int(elapsed//60)
+    if regen>0 and p.energy<100:
+        p.energy=min(100,p.energy+regen)
+        state.last_energy_at=state.last_energy_at+timedelta(minutes=regen)
+    elif regen>0:
+        state.last_energy_at=now
+    return state
+
+JOB_DEFS={
+    'courier':{'title':'Курьер','desc':'Развоз заказов по городу','duration':18,'reward':2350,'energy':12,'xp':45,'icon':'truck'},
+    'taxi':{'title':'Таксист','desc':'Перевозка пассажиров по районам','duration':24,'reward':3100,'energy':15,'xp':58,'icon':'taxi'},
+    'construction':{'title':'Строитель','desc':'Смена на городском объекте','duration':32,'reward':4300,'energy':20,'xp':72,'icon':'hardhat'},
+    'mechanic':{'title':'Механик','desc':'Ремонт автомобилей в СТО','duration':27,'reward':3900,'energy':17,'xp':66,'icon':'wrench'},
+    'driver':{'title':'Дальнобойщик','desc':'Доставка груза между районами','duration':40,'reward':6100,'energy':24,'xp':95,'icon':'truck'},
+    'developer':{'title':'Разработчик','desc':'Работа над цифровой инфраструктурой города','duration':36,'reward':7200,'energy':22,'xp':110,'icon':'code'},
+}
+
+def finish_jobs(db,p):
+    now=datetime.utcnow(); done=[]
+    for job in db.query(JobSession).filter_by(player_id=p.id,status='active').order_by(JobSession.id.asc()).all():
+        if job.finish_at<=now:
+            vip_bonus={'FREE':1,'VIP':1.10,'VIP+':1.15,'ELITE':1.25,'FENIX':1.35}.get(p.vip,1)
+            reward=round(job.reward*vip_bonus)
+            p.cash+=reward; p.total_earned+=reward; p.jobs_completed+=1; p.reputation+=1
+            add_xp(p,round(job.xp_reward*vip_bonus)); transaction(db,p,'RUB',reward,f'Оплата смены: {job.title}')
+            job.status='completed'; done.append({'title':job.title,'reward':reward,'xp':round(job.xp_reward*vip_bonus)})
+            sync_achievements(db,p)
+    return done
+
 def current(db, authorization):
     if not authorization: raise HTTPException(401,'Требуется авторизация')
     try: pid = int(authorization.replace('Bearer ','').split('-')[-1])
     except Exception: raise HTTPException(401,'Недействительный токен')
     p = db.get(Player,pid)
     if not p: raise HTTPException(401,'Игрок не найден')
+    refresh_energy(db,p)
+    finish_jobs(db,p)
     return p
 
 def out(p):
@@ -105,7 +143,7 @@ def admin_grant(pid:int, data:AdminGrant, authorization:str|None=Header(default=
     db.commit(); return out(p)
 
 @app.get('/api/health')
-def health(): return {'status':'ok','service':'FENIX CITY V2','version':'2.1.0'}
+def health(): return {'status':'ok','service':'FENIX CITY V2','version':'2.3.0'}
 
 @app.post('/api/register')
 def register(a:Auth,db:Session=Depends(get_db)):
@@ -131,6 +169,48 @@ def full(pid:int,authorization:str|None=Header(default=None),db:Session=Depends(
     p=current(db,authorization)
     if p.id!=pid: raise HTTPException(403,'Нет доступа')
     return out(p)
+
+@app.get('/api/work/jobs')
+def work_jobs(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); active=db.query(JobSession).filter_by(player_id=p.id,status='active').first()
+    db.commit()
+    return {'jobs':[{'code':k,**v} for k,v in JOB_DEFS.items()],'has_active':bool(active)}
+
+@app.get('/api/work/status')
+def work_status(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); active=db.query(JobSession).filter_by(player_id=p.id,status='active').order_by(JobSession.id.desc()).first()
+    completed=finish_jobs(db,p)
+    db.commit()
+    active_data=None
+    if active and active.status=='active':
+        total=max(1,(active.finish_at-active.started_at).total_seconds()); left=max(0,(active.finish_at-datetime.utcnow()).total_seconds())
+        active_data={'id':active.id,'job_code':active.job_code,'title':active.title,'finish_at':active.finish_at.isoformat(),'seconds_left':int(left),'duration':int(total),'progress':round((1-left/total)*100)}
+    return {'player':out(p),'active':active_data,'completed':completed}
+
+class WorkStart(BaseModel): job_code:str
+
+@app.post('/api/work/start')
+def work_start(data:WorkStart,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); refresh_energy(db,p); finish_jobs(db,p)
+    if db.query(JobSession).filter_by(player_id=p.id,status='active').first(): raise HTTPException(400,'Сначала закончи текущую смену')
+    job=JOB_DEFS.get(data.job_code)
+    if not job: raise HTTPException(404,'Работа не найдена')
+    if p.energy<job['energy']: raise HTTPException(400,f"Недостаточно энергии: нужно {job['energy']}")
+    p.energy-=job['energy']; now=datetime.utcnow(); state=refresh_energy(db,p); state.last_work_at=now
+    session=JobSession(player_id=p.id,job_code=data.job_code,title=job['title'],started_at=now,finish_at=now+timedelta(seconds=job['duration']),reward=job['reward']+p.level*140,xp_reward=job['xp'],energy_cost=job['energy'])
+    db.add(session); db.commit(); return {'player':out(p),'active':{'id':session.id,'job_code':data.job_code,'title':job['title'],'finish_at':session.finish_at.isoformat(),'seconds_left':job['duration'],'duration':job['duration'],'progress':0}}
+
+@app.post('/api/work/claim')
+def work_claim(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); active=db.query(JobSession).filter_by(player_id=p.id,status='active').order_by(JobSession.id.desc()).first()
+    if active and active.finish_at>datetime.utcnow(): raise HTTPException(400,f'Смена ещё идёт: {int((active.finish_at-datetime.utcnow()).total_seconds())} сек.')
+    completed=finish_jobs(db,p); db.commit(); return {'player':out(p),'completed':completed}
+
+@app.post('/api/energy/buy')
+def energy_buy(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization); cost=35
+    if p.coins<cost: raise HTTPException(400,'Нужно 35 FC')
+    p.coins-=cost; p.energy=100; transaction(db,p,'FC',-cost,'Полное восстановление энергии'); db.commit(); return out(p)
 
 @app.post('/api/player/{pid}/action')
 def action(pid:int,a:Action,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
@@ -249,7 +329,13 @@ def vehicles(authorization:str|None=Header(default=None),db:Session=Depends(get_
 def my_vehicles(pid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
     p=current(db,authorization)
     if p.id!=pid: raise HTTPException(403,'Нет доступа')
-    return [{'id':pv.id,'vehicle':{'id':(v:=db.get(Vehicle,pv.vehicle_id)).id,'name':v.name,'price':v.price,'power':v.power,'class':v.class_name,'speed':v.speed,'handling':v.handling},'purchased_at':pv.purchased_at} for pv in db.query(PlayerVehicle).filter_by(player_id=p.id)]
+    rows=[]
+    for pv in db.query(PlayerVehicle).filter_by(player_id=p.id):
+        v=db.get(Vehicle,pv.vehicle_id); st=db.query(VehicleState).filter_by(player_vehicle_id=pv.id).first()
+        if not st: st=VehicleState(player_vehicle_id=pv.id); db.add(st)
+        active_vehicle=refresh_energy(db,p).active_vehicle_id
+        rows.append({'id':pv.id,'vehicle':{'id':v.id,'name':v.name,'price':v.price,'power':v.power+st.tuned_power,'class':v.class_name,'speed':v.speed+st.tuned_speed,'handling':v.handling+st.handling_bonus},'level':st.level,'condition':st.condition,'mileage':st.mileage,'active':active_vehicle==v.id,'purchased_at':pv.purchased_at})
+    db.commit(); return rows
 @app.post('/api/player/{pid}/vehicle/{vid}/buy')
 def buy_vehicle(pid:int,vid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
     p=current(db,authorization)
@@ -259,6 +345,34 @@ def buy_vehicle(pid:int,vid:int,authorization:str|None=Header(default=None),db:S
     if db.query(PlayerVehicle).filter_by(player_id=p.id,vehicle_id=v.id).first(): raise HTTPException(400,'Автомобиль уже куплен')
     if p.cash<v.price: raise HTTPException(400,'Недостаточно средств')
     p.cash-=v.price; db.add(PlayerVehicle(player_id=p.id,vehicle_id=v.id)); add_xp(p,120); transaction(db,p,'RUB',-v.price,'Покупка автомобиля: '+v.name); sync_achievements(db,p); db.commit(); return out(p)
+
+@app.post('/api/player/{pid}/vehicle/{pvid}/select')
+def select_vehicle(pid:int,pvid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    if p.id!=pid: raise HTTPException(403,'Нет доступа')
+    pv=db.get(PlayerVehicle,pvid)
+    if not pv or pv.player_id!=p.id: raise HTTPException(404,'Автомобиль не найден')
+    state=refresh_energy(db,p); state.active_vehicle_id=pv.vehicle_id; db.commit(); return out(p)
+
+class VehicleUpgrade(BaseModel): kind:str
+@app.post('/api/player/{pid}/vehicle/{pvid}/upgrade')
+def upgrade_vehicle(pid:int,pvid:int,data:VehicleUpgrade,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    if p.id!=pid: raise HTTPException(403,'Нет доступа')
+    pv=db.get(PlayerVehicle,pvid)
+    if not pv or pv.player_id!=p.id: raise HTTPException(404,'Автомобиль не найден')
+    v=db.get(Vehicle,pv.vehicle_id); st=db.query(VehicleState).filter_by(player_vehicle_id=pv.id).first()
+    if not st: st=VehicleState(player_vehicle_id=pv.id); db.add(st)
+    cost=round(v.price*0.04*(st.level+1));
+    if st.level>=10: raise HTTPException(400,'Автомобиль достиг максимального уровня')
+    if p.cash<cost: raise HTTPException(400,f'Нужно {cost:,} ₽')
+    p.cash-=cost; st.level+=1
+    if data.kind=='power': st.tuned_power+=round(v.power*0.04)
+    elif data.kind=='speed': st.tuned_speed+=round(v.speed*0.025)
+    elif data.kind=='handling': st.handling_bonus+=2
+    elif data.kind=='repair': st.condition=100
+    else: raise HTTPException(400,'Неизвестное улучшение')
+    transaction(db,p,'RUB',-cost,f'Тюнинг {v.name}: {data.kind}'); db.commit(); return out(p)
 
 @app.get('/api/properties')
 def properties(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
@@ -301,6 +415,20 @@ def buy_company(pid:int,cid:int,authorization:str|None=Header(default=None),db:S
     if db.query(PlayerCompany).filter_by(player_id=p.id,company_id=c.id).first(): raise HTTPException(400,'Компания уже куплена')
     if p.cash<c.price: raise HTTPException(400,'Недостаточно средств')
     p.cash-=c.price; db.add(PlayerCompany(player_id=p.id,company_id=c.id)); add_xp(p,250); transaction(db,p,'RUB',-c.price,'Покупка компании: '+c.name); sync_achievements(db,p); db.commit(); return out(p)
+@app.post('/api/player/{pid}/company/{pcid}/upgrade')
+def upgrade_company(pid:int,pcid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    if p.id!=pid: raise HTTPException(403,'Нет доступа')
+    pc=db.get(PlayerCompany,pcid)
+    if not pc or pc.player_id!=p.id: raise HTTPException(404,'Бизнес не найден')
+    c=db.get(Company,pc.company_id)
+    if pc.level>=c.max_level: raise HTTPException(400,'Максимальный уровень')
+    cost=round(c.price*0.12*pc.level)
+    if p.cash<cost: raise HTTPException(400,f'Нужно {cost:,} ₽')
+    p.cash-=cost; pc.level+=1
+    transaction(db,p,'RUB',-cost,f'Развитие бизнеса: {c.name} до {pc.level} уровня'); add_xp(p,120+pc.level*20); db.commit()
+    return out(p)
+
 @app.post('/api/player/{pid}/companies/collect')
 def collect_company_income(pid:int,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
     p=current(db,authorization)
@@ -340,7 +468,7 @@ def market(authorization:str|None=Header(default=None),db:Session=Depends(get_db
 def market_tick(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
     current(db,authorization)
     for x in db.query(MarketAsset).all():
-        x.change=round(random.uniform(-4.5,4.5),2); x.price=max(10,round(x.price*(1+x.change/100),2)); x.volume=random.randint(2500,18000)
+        x.change=round(random.uniform(-77,50),2); x.price=max(50,round(x.price*(1+x.change/100),2)); x.volume=random.randint(2500,18000)
     db.commit(); return market(authorization,db)
 @app.post('/api/market/buy')
 def market_buy(t:MarketTrade,authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
@@ -366,6 +494,17 @@ def market_sell(t:MarketTrade,authorization:str|None=Header(default=None),db:Ses
     if h.quantity==0: db.delete(h)
     p.cash+=revenue; p.total_earned+=max(0,revenue-(h.average_price*t.quantity if h else 0))
     transaction(db,p,'RUB',revenue,f'Продажа {t.quantity} {a.symbol}'); db.commit(); return {'player':out(p),'sold':t.quantity,'revenue':round(revenue,2)}
+
+@app.get('/api/ai/advice')
+def ai_advice(authorization:str|None=Header(default=None),db:Session=Depends(get_db)):
+    p=current(db,authorization)
+    companies=db.query(PlayerCompany).filter_by(player_id=p.id).count(); cars=db.query(PlayerVehicle).filter_by(player_id=p.id).count(); props=db.query(PlayerProperty).filter_by(player_id=p.id).count()
+    if p.energy<30: advice='Энергия низкая. Отдохни или восстанови её за FC, затем бери более дорогую смену.'
+    elif companies==0 and p.cash>=400000: advice='У тебя уже есть капитал для первого бизнеса. Открой бизнес и развивай его — это создаст пассивный поток ₽.'
+    elif cars==0 and p.cash>=18000: advice='Можно взять первый автомобиль и открыть путь к автомобильным активностям и тюнингу.'
+    elif props==0 and p.cash>=120000: advice='Рассмотри недвижимость: она начисляет доход автоматически за прошедшее время.'
+    else: advice=f'Продолжай карьеру: сейчас у тебя {p.jobs_completed} смен, {cars} авто и {companies} бизнесов. Следующая цель — повысить уровень и открыть более дорогие источники дохода.'
+    return {'title':'FENIX AI','advice':advice,'metrics':{'energy':p.energy,'cash':round(p.cash,2),'level':p.level,'cars':cars,'businesses':companies,'properties':props}}
 
 @app.get('/api/leaderboard')
 def leaderboard(db:Session=Depends(get_db)):

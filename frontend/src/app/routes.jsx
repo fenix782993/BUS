@@ -1,1 +1,1 @@
-export const routes={dashboard:"dashboard",city:"city",work:"work",business:"business",garage:"garage",market:"market",ranking:"ranking",missions:"missions",achievements:"achievements",shop:"shop",donations:"donations",profile:"profile",settings:"settings"};
+export const routes={dashboard:"dashboard",city:"city",work:"work",business:"business",garage:"garage",market:"market",properties:"properties",ranking:"ranking",missions:"missions",achievements:"achievements",shop:"shop",donations:"donations",profile:"profile",settings:"settings"};

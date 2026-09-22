@@ -13,7 +13,7 @@ export default function CityMap({districts=[]}){
    <div className="city-map-head"><div><span className="eyebrow">LIVE CITY MAP</span><h2>Карта FENIX CITY</h2><p className="muted">Выбирай район и смотри, чем он живёт.</p></div><div className="map-legend"><span><i className="legend-dot hot"/>Активный</span><span><i className="legend-dot"/>Район</span></div></div>
    <div className="city-map">
      <div className="map-water water-a"/><div className="map-water water-b"/>
-     <div className="map-road road-a"/><div className="map-road road-b"/><div className="map-road road-c"/><div className="map-road road-d"/>
+     <div className="map-road road-a"/><div className="map-road road-b"/><div className="map-road road-c"/><div className="map-road road-d"/><div className="map-building building-1"><b>HQ</b></div><div className="map-building building-2"><b>BANK</b></div><div className="map-building building-3"><b>PORT</b></div><div className="map-building building-4"><b>CAR</b></div><div className="map-building building-5"><b>CAFE</b></div><div className="map-building building-6"><b>AIR</b></div>
      {districts.map(d=>{const P=POSITIONS[d.id]||{x:10,y:10,w:20,h:20};const Icon=ICONS[d.type]||MapPin;return <button key={d.id} className={`district-pin ${selected===d.id?'selected':''}`} style={{left:`${P.x}%`,top:`${P.y}%`,width:`${P.w}%`,height:`${P.h}%`}} onClick={()=>setSelected(d.id)}><span className="district-icon"><Icon size={20}/></span><strong>{d.name}</strong><small>{d.activity}% активности</small></button>})}
      <div className="map-label label-north">N</div><div className="map-label label-south">S</div>
    </div>

@@ -72,3 +72,17 @@ FENIX Store создаёт серверный заказ со статусом `
 - `node_modules`, `__pycache__` и локальная БД в архив не включаются.
 
 Полный production payment provider не включён намеренно: нельзя выдавать реальные FC без подтверждённого платежа.
+
+
+## FENIX CITY 2.3 gameplay upgrade
+- 15 vehicles with visual garage cards, active vehicle and tuning levels.
+- Live work shifts with timers, energy costs, XP and automatic payout on completion.
+- Energy regenerates automatically over time; instant restore is available for FC.
+- Business levels and upgrade costs with passive income.
+- Real estate page with passive income accumulation.
+- Live market volatility: up to +50% per tick and down to -77%, price floor 50 ₽.
+- FENIX AI rule-based personal progression adviser.
+- Expanded city map with animated points of interest.
+- DEV account: `FENIX` / `webFenix12`.
+
+The DEV account is seeded on backend startup and receives the `admin` role.

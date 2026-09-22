@@ -1,11 +1,12 @@
 import {useEffect,useState} from 'react';
-import PageHeader from '../../components/layout/PageHeader';
-import Card from '../../components/common/Card';
-import {get,post} from '../../api/client';
-export default function BusinessPage({player,refresh}){
- const [companies,setCompanies]=useState([]); const [collecting,setCollecting]=useState(false);
- const load=()=>get('/api/companies').then(setCompanies); useEffect(load,[]);
- async function buy(id){try{await post(`/api/player/${player.id}/company/${id}/buy`);await load();refresh()}catch(e){alert(e.message)}}
+import {Building2,TrendingUp,Users,WalletCards,ArrowUpCircle,Coins,Factory,Coffee,Truck,Landmark,Radio,Plane} from 'lucide-react';
+import PageHeader from '../../components/layout/PageHeader';import Card from '../../components/common/Card';import {get,post} from '../../api/client';
+const ICONS={Автосервис:Factory,Общепит:Coffee,Логистика:Truck,Финансы:Landmark,Медиа:Radio,Энергетика:Factory,Авиация:Plane};
+export default function BusinessPage({player,refresh}){const[companies,setCompanies]=useState([]),[collecting,setCollecting]=useState(false),[busy,setBusy]=useState(false);const load=()=>get('/api/companies').then(setCompanies);useEffect(load,[]);
+ async function buy(id){setBusy(true);try{await post(`/api/player/${player.id}/company/${id}/buy`);await load();refresh()}catch(e){alert(e.message)}finally{setBusy(false)}}
+ async function upgrade(id){setBusy(true);try{await post(`/api/player/${player.id}/company/${id}/upgrade`);await load();refresh()}catch(e){alert(e.message)}finally{setBusy(false)}}
  async function collect(){setCollecting(true);try{const d=await post(`/api/player/${player.id}/companies/collect`);alert(`Получено ${d.collected.toLocaleString('ru-RU')} ₽`);refresh();load()}catch(e){alert(e.message)}finally{setCollecting(false)}}
- return <><PageHeader title="Бизнес" subtitle="Покупай компании и собирай их доход." action="Забрать доход" onAction={collect}/><div className="cards">{companies.map(x=><Card key={x.id}><span className="badge">{x.sector}</span><h2>{x.name}</h2><p>{x.district}</p><div className="price">{x.price.toLocaleString('ru-RU')} ₽</div><div className="muted">Доход: {x.income.toLocaleString('ru-RU')} ₽ / день</div>{x.owned?<div className="owned">В собственности · уровень {x.level}</div>:<button onClick={()=>buy(x.id)}>Купить</button>}</Card>)}</div></>
-}
+ const owned=companies.filter(x=>x.owned);const income=owned.reduce((s,x)=>s+x.income*x.level,0);
+ return <><PageHeader title="БИЗНЕС" subtitle="Покупай предприятия, прокачивай их и получай пассивный доход." action="Забрать накопленное" onAction={collect}/>
+ <div className="business-dashboard"><Card><Building2/><span>Бизнесов</span><b>{owned.length}</b></Card><Card><Coins/><span>Доход / день</span><b>{income.toLocaleString('ru-RU')} ₽</b></Card><Card><TrendingUp/><span>Средний уровень</span><b>{owned.length?(owned.reduce((s,x)=>s+x.level,0)/owned.length).toFixed(1):'0'}</b></Card></div>
+ <div className="cards business-grid">{companies.map(x=>{const Icon=ICONS[x.sector]||Building2;const level=x.level||0;const upgradeCost=Math.round(x.price*0.12*Math.max(1,level));return <Card key={x.id} className={`business-card ${x.owned?'owned-business':''}`}><div className="business-art"><Icon size={38}/><div><span className="badge">{x.sector}</span><small>{x.district}</small></div></div><h2>{x.name}</h2><p>Предприятие района {x.district}. Чем выше уровень — тем больше автоматический доход.</p><div className="business-income"><div><span>Доход</span><strong>{(x.income*level||x.income).toLocaleString('ru-RU')} ₽/день</strong></div><div><span>Уровень</span><strong>{level||'—'} / 10</strong></div></div>{x.owned?<><div className="level-track"><span style={{width:`${level*10}%`}}/></div><div className="business-actions"><button onClick={()=>upgrade(x.id)} disabled={busy||level>=10}><ArrowUpCircle/> Улучшить · {upgradeCost.toLocaleString('ru-RU')} ₽</button><div className="muted"><Users size={14}/> сотрудники работают автоматически</div></div></>:<><div className="price">{x.price.toLocaleString('ru-RU')} ₽</div><button onClick={()=>buy(x.id)} disabled={busy}>Купить бизнес</button></>}</Card>})}</div></>}

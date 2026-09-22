@@ -165,3 +165,35 @@ class DonationOrder(Base):
     amount = Column(Float)
     status = Column(String(24), default='pending')
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class PlayerState(Base):
+    __tablename__ = 'player_states'
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), unique=True, nullable=False)
+    last_energy_at = Column(DateTime, default=datetime.utcnow)
+    active_vehicle_id = Column(Integer, ForeignKey('vehicles.id'), nullable=True)
+    last_work_at = Column(DateTime, nullable=True)
+
+class JobSession(Base):
+    __tablename__ = 'job_sessions'
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    job_code = Column(String(32), nullable=False)
+    title = Column(String(120), nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    finish_at = Column(DateTime, nullable=False)
+    reward = Column(Float, default=0)
+    xp_reward = Column(Integer, default=0)
+    energy_cost = Column(Integer, default=0)
+    status = Column(String(16), default='active')
+
+class VehicleState(Base):
+    __tablename__ = 'vehicle_states'
+    id = Column(Integer, primary_key=True)
+    player_vehicle_id = Column(Integer, ForeignKey('player_vehicles.id'), unique=True, nullable=False)
+    level = Column(Integer, default=1)
+    condition = Column(Integer, default=100)
+    mileage = Column(Integer, default=0)
+    tuned_power = Column(Integer, default=0)
+    tuned_speed = Column(Integer, default=0)
+    handling_bonus = Column(Integer, default=0)
