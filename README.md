@@ -1,94 +1,57 @@
-# FENIX CITY V2 — FULL
+# FENIX CITY 2.5 REAL FULL
 
-Полная модульная версия FENIX CITY: React/Vite + FastAPI + SQLAlchemy.
+FENIX CITY — responsive virtual city/economy game with real server-side gameplay.
 
-## Что готово
+## Included
 
-- регистрация и вход;
-- серверный профиль игрока;
-- ₽ и FENIX Coins (FC);
-- XP, уровни и репутация;
-- работа и восстановление энергии;
-- ежедневные/недельные/долгосрочные задания;
-- автоматическая система достижений;
-- магазин и серверный инвентарь;
-- экипировка рамок/эффектов/титулов/VIP;
-- автомобили и гараж;
-- недвижимость и сбор дохода;
-- компании и сбор дохода бизнеса;
-- серверный рынок и обновление котировок;
-- сделки рынка за игровые ₽;
-- рейтинг игроков;
-- история экономических операций;
-- VIP-уровни;
-- FENIX Store с серверными donation orders;
-- адаптивный интерфейс PC/mobile;
-- Render-ready FastAPI entrypoint.
-
-## Локальный запуск
-
-```cmd
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-cd frontend
-npm install
-npm run build
-cd ..
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
+- Live city chat with 2-second polling
+- Notifications and unread state
+- Player-to-player RUB / FC transfers
+- Families with leader/officer/member roles
+- Family chat with live polling
+- Family leave and leader succession
+- Playable family battle foundation: challenge, score actions, 100-point finish and rating reward
+- Vehicle auction: listings, instant buy and bidding
+- Avatar image upload
+- Manual RUB donation queue
+- Payment screenshot upload
+- DEV donation review / approve / reject
+- FC credited only by server after approval
+- Donation requisites from `DONATION_REQUISITES`
+- Timed work shifts with automatic completion, rewards, XP and energy regeneration
+- Garage, tuning, properties, companies, market, missions, shop, VIP and progression
+- Mobile navigation and responsive layouts
+- Smooth transitions, live states and motion polish
 
 ## Render
 
-Build Command:
+Build command:
 
 ```text
 pip install -r requirements.txt && cd frontend && npm install && npm run build
 ```
 
-Start Command:
+Start command:
 
 ```text
 uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-## Проверка API
+## Donation setup
 
-- `/api/health`
-- `/docs`
+In Render Environment Variables set:
 
-## Важное про донат
+```text
+DONATION_REQUISITES=YOUR_PAYMENT_REQUISITES
+```
 
-FENIX Store создаёт серверный заказ со статусом `pending`. FC не начисляются клиентом и не считаются оплаченными без подтверждения платежа. Подключение конкретного платёжного провайдера и его webhook выполняется отдельным адаптером.
+Do not place payment requisites in frontend source.
 
-Для постоянной базы на Render рекомендуется задать `DATABASE_URL` PostgreSQL. Без неё используется SQLite.
+## Developer account
 
-## Проверки перед упаковкой
+```text
+Nickname: FENIX
+Password: webFenix12
+```
 
-- Python `compileall` — пройден.
-- Все относительные JS/JSX/CSS импорты — проверены, отсутствующих импортов нет.
-- FastAPI запущен локально и проверены основные API-потоки: health, register, me, tasks, achievements, shop, inventory, donations, vehicles, properties, companies, market, VIP, leaderboard, transactions, work, market tick.
-- Архив ZIP протестирован через `unzip -t`.
-- `node_modules`, `__pycache__` и локальная БД в архив не включаются.
-
-Полный production payment provider не включён намеренно: нельзя выдавать реальные FC без подтверждённого платежа.
-
-
-## FENIX CITY 2.3 gameplay upgrade
-- 15 vehicles with visual garage cards, active vehicle and tuning levels.
-- Live work shifts with timers, energy costs, XP and automatic payout on completion.
-- Energy regenerates automatically over time; instant restore is available for FC.
-- Business levels and upgrade costs with passive income.
-- Real estate page with passive income accumulation.
-- Live market volatility: up to +50% per tick and down to -77%, price floor 50 ₽.
-- FENIX AI rule-based personal progression adviser.
-- Expanded city map with animated points of interest.
-- DEV account: `FENIX` / `webFenix12`.
-
-The DEV account is seeded on backend startup and receives the `admin` role.
-
-## V2.4 Mega systems
-Добавлены серверные системы: городской чат, семейная система и семейный чат, переводы RUB/FC между игроками, уведомления, аукцион автомобилей, загрузка аватара, ручная проверка донатов со скриншотом, DEV-очередь донатов и новые UI-разделы.
-
-### Ручные донаты
-В Render Environment Variables добавь `DONATION_REQUISITES` и укажи там актуальные реквизиты для перевода. Реквизиты не зашиваются в frontend и не публикуются в исходниках. Игрок создаёт заявку, переводит рубли, загружает скриншот; DEV вручную одобряет или отклоняет заявку. FC начисляются только после approve на сервере.
+Change credentials before any public production release.
